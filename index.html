@@ -717,7 +717,7 @@ create policy "public_access" on app_state
       <div class="fg"><label class="fl">End Time</label><input class="fi" id="ev-end" type="time"></div>
     </div>
     <div class="fg"><label class="fl">Repeats</label>
-      <select class="fi" id="ev-recur">
+      <select class="fi" id="ev-recur" onchange="toggleRecurUntil()">
         <option value="none">Does not repeat</option>
         <option value="daily">Daily</option>
         <option value="weekdays">Weekdays (Mon–Fri)</option>
@@ -726,6 +726,7 @@ create policy "public_access" on app_state
         <option value="monthly">Monthly</option>
       </select>
     </div>
+    <div class="fg" id="recur-until-wrap" style="display:none"><label class="fl">Repeat Until <span style="font-weight:600;color:#bbb">(leave blank = forever)</span></label><input class="fi" id="ev-recur-until" type="date"></div>
     <div class="fg"><label class="fl">Reminders</label>
       <div id="ev-rems-list"></div>
       <button id="add-rem-btn" onclick="addRemRow()">+ Add Reminder</button>
@@ -1532,7 +1533,10 @@ function getEventsForDate(ds){return state.events.filter(ev=>evOccursOn(ev,ds))}
 function evOccursOn(ev,ds){
   const d=new Date(ds+'T00:00:00');const evd=new Date(ev.date+'T00:00:00');const rec=ev.recurrence||'none';
   if(rec==='none')return ev.date===ds;if(d<evd)return false;
-  const endD=ev.endDate?new Date(ev.endDate+'T00:00:00'):null;if(endD&&d>endD)return false;
+  // Multi-day event span (non-recurring end date)
+  const endD=ev.endDate&&rec==='none'?new Date(ev.endDate+'T00:00:00'):null;if(endD&&d>endD)return false;
+  // Recurring end date
+  if(ev.recurUntil){const until=new Date(ev.recurUntil+'T00:00:00');if(d>until)return false;}
   const diff=Math.round((d-evd)/86400000);
   if(rec==='daily')return true;if(rec==='weekdays')return d.getDay()>=1&&d.getDay()<=5;
   if(rec==='weekly')return diff%7===0;if(rec==='fortnightly')return diff%14===0;
@@ -1553,11 +1557,17 @@ function openEventModal(existingId){
   document.getElementById('ev-start').value=ev&&ev.startTime||'';
   document.getElementById('ev-end').value=ev&&ev.endTime||'';
   document.getElementById('ev-recur').value=ev&&ev.recurrence||'none';
+  document.getElementById('ev-recur-until').value=ev&&ev.recurUntil||'';
+  toggleRecurUntil();
   document.getElementById('ev-notes').value=ev&&ev.notes||'';
   document.getElementById('ev-rems-list').innerHTML='';
   (ev&&ev.reminders||[]).forEach(r=>addRemRow(r.mins!==undefined?r.mins:r));
   buildMSelector('ev-members',ev&&ev.memberIds||[]);
   openModal('modal-event');
+}
+function toggleRecurUntil(){
+  var rec=document.getElementById('ev-recur').value;
+  document.getElementById('recur-until-wrap').style.display=rec==='none'?'none':'block';
 }
 function addRemRow(remVal){
   const rowId='rem-'+Date.now()+Math.random().toString(36).slice(2,5);
@@ -1575,6 +1585,7 @@ function saveEvent(){
   const ev={id:editId||uid(),title,date,endDate:document.getElementById('ev-enddate').value||null,
     startTime:document.getElementById('ev-start').value||null,endTime:document.getElementById('ev-end').value||null,
     recurrence:document.getElementById('ev-recur').value,
+    recurUntil:document.getElementById('ev-recur-until').value||null,
     reminders:Array.from(document.querySelectorAll('.rem-row')).map(row=>({
       mins:parseInt(row.querySelector('.rem-sel').value)
     })),
@@ -1596,7 +1607,7 @@ function viewEventDetail(evId){
       <div style="font-family:'Fredoka One',cursive;font-size:22px">${ev.title}</div>
       <div style="margin-top:6px;opacity:0.85;font-weight:600">${fmtDate(ev.date)}${ev.endDate&&ev.endDate!==ev.date?' – '+fmtDate(ev.endDate):''}</div>
       ${ev.startTime?`<div style="opacity:0.85">${fmtTime(ev.startTime)}${ev.endTime?' – '+fmtTime(ev.endTime):''}</div>`:''}
-      ${ev.recurrence&&ev.recurrence!=='none'?`<div style="opacity:0.7;font-size:12px">Repeats: ${ev.recurrence}</div>`:''}
+      ${ev.recurrence&&ev.recurrence!=='none'?`<div style="opacity:0.7;font-size:12px">Repeats: ${ev.recurrence}${ev.recurUntil?' until '+fmtDate(ev.recurUntil):''}</div>`:''}
       <div style="opacity:0.7;font-size:12px">Reminders: ${remText}</div>
     </div>
     ${ms.length?`<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${ms.map(m=>`<span style="background:${m.color};color:#fff;padding:5px 12px;border-radius:50px;font-weight:700;font-size:13px">${m.initial} ${m.name}</span>`).join('')}</div>`:''}
@@ -2456,3 +2467,4 @@ init();
 </script>
 </body>
 </html>
+
