@@ -1969,16 +1969,40 @@ function confirmRedeem(){
 // ════════════════════════════════════════
 // REMINDERS
 // ════════════════════════════════════════
-function startRemCheck(){if(remInterval)clearInterval(remInterval);remInterval=setInterval(checkRems,60000);checkRems()}
+// ── Audio unlock on first user touch ──
+var audioCtxUnlocked=false;
+var speechUnlocked=false;
+function unlockAudio(){
+  if(!audioCtxUnlocked){
+    try{
+      var ctx=new(window.AudioContext||window.webkitAudioContext)();
+      var buf=ctx.createBuffer(1,1,22050);var src=ctx.createBufferSource();
+      src.buffer=buf;src.connect(ctx.destination);src.start(0);
+      audioCtxUnlocked=true;
+    }catch(e){}
+  }
+  if(!speechUnlocked&&'speechSynthesis' in window){
+    var utt=new SpeechSynthesisUtterance('');utt.volume=0;
+    window.speechSynthesis.speak(utt);
+    speechUnlocked=true;
+  }
+}
+document.addEventListener('touchstart',unlockAudio,{once:true});
+document.addEventListener('click',unlockAudio,{once:true});
+
+function startRemCheck(){if(remInterval)clearInterval(remInterval);remInterval=setInterval(checkRems,30000);checkRems()}
 function checkRems(){
-  if(!state.remindersEnabled)return;const now=new Date();const ds=todayStr();
-  state.events.forEach(ev=>{
+  if(!state.remindersEnabled)return;var now=new Date();var ds=todayStr();
+  state.events.forEach(function(ev){
     if(!ev.startTime||(ev.reminders||[]).length===0||!evOccursOn(ev,ds))return;
-    const[h,m]=ev.startTime.split(':').map(Number);const evMs=h*60+m;const nowMs=now.getHours()*60+now.getMinutes();
-    (ev.reminders||[]).forEach(rem=>{
-      const mins=rem.mins!==undefined?rem.mins:rem;
-      const key=`${ev.id}-${ds}-${mins}`;
-      if(Math.abs(nowMs-(evMs-mins))<=1&&!firedRems.has(key)){firedRems.add(key);fireRem(ev,mins)}
+    var parts=ev.startTime.split(':');var evMs=parseInt(parts[0])*60+parseInt(parts[1]);
+    var nowMs=now.getHours()*60+now.getMinutes();
+    (ev.reminders||[]).forEach(function(rem){
+      var mins=rem.mins!==undefined?rem.mins:rem;
+      var key=ev.id+'-'+ds+'-'+mins;
+      var diff=nowMs-(evMs-mins);
+      // Fire if within a 2-minute window (catches any timing drift)
+      if(diff>=0&&diff<2&&!firedRems.has(key)){firedRems.add(key);fireRem(ev,mins);}
     });
   });
 }
@@ -2004,29 +2028,34 @@ function fireRem(ev,rem){
 function toggleReminders(){state.remindersEnabled=!state.remindersEnabled;document.getElementById('rem-toggle-btn').textContent=state.remindersEnabled?'🔔':'🔕';save();showToast(state.remindersEnabled?'Reminders on 🔔':'Reminders off 🔕')}
 
 function speakReminder(text){
-  if(!('speechSynthesis' in window))return;
-  // Cancel any currently speaking reminder
-  window.speechSynthesis.cancel();
-  const utt=new SpeechSynthesisUtterance(text);
-  utt.rate=0.92;
-  utt.pitch=1.05;
-  utt.volume=1;
-  // Prefer a natural-sounding voice if available
-  const voices=window.speechSynthesis.getVoices();
-  const preferred=voices.find(v=>v.lang.startsWith('en')&&v.localService&&!v.name.toLowerCase().includes('google'))
-    ||voices.find(v=>v.lang.startsWith('en'))
-    ||null;
-  if(preferred)utt.voice=preferred;
-  window.speechSynthesis.speak(utt);
+  // Play a short chime first so there's always an audible alert
+  playChime(true);
+  // Then speak after a short delay (gives chime time to start)
+  setTimeout(function(){
+    if(!('speechSynthesis' in window))return;
+    window.speechSynthesis.cancel();
+    var utt=new SpeechSynthesisUtterance(text);
+    utt.rate=0.92;utt.pitch=1.05;utt.volume=1;
+    var voices=window.speechSynthesis.getVoices();
+    var preferred=null;
+    for(var i=0;i<voices.length;i++){
+      if(voices[i].lang.startsWith('en')&&voices[i].localService&&voices[i].name.toLowerCase().indexOf('google')===-1){preferred=voices[i];break;}
+    }
+    if(!preferred){for(var j=0;j<voices.length;j++){if(voices[j].lang.startsWith('en')){preferred=voices[j];break;}}}
+    if(preferred)utt.voice=preferred;
+    try{window.speechSynthesis.speak(utt);}catch(e){}
+  },600);
 }
 
-function playChime(loud=false){
+function playChime(loud){
+  loud=loud||false;
   try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    (loud?[523,659,784,1047]:[659,784]).forEach((freq,i)=>{
-      const o=ctx.createOscillator(),g=ctx.createGain();
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var freqs=loud?[523,659,784,1047]:[659,784];
+    freqs.forEach(function(freq,i){
+      var o=ctx.createOscillator(),g=ctx.createGain();
       o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=freq;
-      const t=ctx.currentTime+i*0.18;
+      var t=ctx.currentTime+i*0.18;
       g.gain.setValueAtTime(0,t);
       g.gain.linearRampToValueAtTime(loud?0.3:0.18,t+0.05);
       g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
@@ -2467,4 +2496,3 @@ init();
 </script>
 </body>
 </html>
-
