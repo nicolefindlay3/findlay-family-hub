@@ -250,7 +250,25 @@ textarea.fi{resize:vertical;min-height:70px}
 .info-orange{background:#FFF3E0;color:#e65100}
 .info-green{background:#E8F5E9;color:#2e7d32}
 
-/* ── KIDS TAB ── */
+/* ── LEADERBOARD ── */
+#leaderboard-content{padding:14px}
+.lb-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:14px;margin-bottom:8px;box-shadow:var(--shadow)}
+.lb-rank{font-family:'Fredoka One',cursive;font-size:18px;width:24px;text-align:center;flex-shrink:0;color:var(--muted)}
+.lb-rank.gold{color:#F9A825}
+.lb-rank.silver{color:#90A4AE}
+.lb-rank.bronze{color:#A1887F}
+.lb-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0}
+.lb-name{flex:1;font-weight:800;font-size:14px}
+.lb-pts{font-family:'Fredoka One',cursive;font-size:20px}
+.lb-bar-wrap{height:5px;background:#f0f0f0;border-radius:5px;margin-top:4px}
+.lb-bar{height:5px;border-radius:5px;transition:width 0.6s ease}
+.lb-header{display:flex;overflow-x:auto;gap:10px;padding:0 0 14px;scrollbar-width:none}
+.lb-header::-webkit-scrollbar{display:none}
+.lb-chip{flex-shrink:0;text-align:center;background:#fff;border-radius:14px;padding:10px 14px;box-shadow:var(--shadow);min-width:70px}
+.lb-chip-pts{font-family:'Fredoka One',cursive;font-size:22px}
+.lb-chip-name{font-size:11px;font-weight:800;color:var(--muted)}
+.lb-chip.top{background:linear-gradient(135deg,#FECA57,#FF8E53);color:#fff}
+.lb-chip.top .lb-chip-name{color:rgba(255,255,255,0.85)}
 .kid-card{margin:10px 14px;border-radius:22px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;transition:transform 0.15s}
 .kid-card:active{transform:scale(0.98)}
 .kid-card-hdr{padding:16px 18px;display:flex;align-items:center;gap:14px;color:#fff}
@@ -521,6 +539,7 @@ create policy "public_access" on app_state
   <button class="nav-btn" onclick="switchTab('chores',this)"><span class="ni">🧹</span><span>Chores</span></button>
   <button class="nav-btn" onclick="switchTab('points',this)"><span class="ni">⭐</span><span>Points</span></button>
   <button class="nav-btn" onclick="switchTab('kids',this)"><span class="ni">🌟</span><span>Kids</span></button>
+  <button class="nav-btn" onclick="switchTab('leaderboard',this)"><span class="ni">🏆</span><span>Board</span></button>
   <button id="side-fab" onclick="openAddModal()">+</button>
 </nav>
 
@@ -636,6 +655,10 @@ create policy "public_access" on app_state
   <div class="tab-panel" id="tab-kids">
     <div class="sec-hdr"><div class="sec-title">🌟 Kid Dashboards</div></div>
     <div id="kids-cards-list"></div>
+  </div>
+
+  <div class="tab-panel" id="tab-leaderboard">
+    <div id="leaderboard-content"></div>
   </div>
 
   </div><!-- #main -->
@@ -1275,7 +1298,7 @@ function switchTab(tab,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');btn.classList.add('active');
-  const showFab={home:false,calendar:true,chores:true,points:false,kids:false};
+  const showFab={home:false,calendar:true,chores:true,points:false,kids:false,leaderboard:false};
   const fab=document.getElementById('side-fab');
   if(fab)fab.style.display=showFab[tab]?'flex':'none';
   if(tab==='home')renderHome();
@@ -1283,6 +1306,46 @@ function switchTab(tab,btn){
   if(tab==='chores')renderChores();
   if(tab==='points')renderPoints();
   if(tab==='kids')renderKidsTab();
+  if(tab==='leaderboard')renderLeaderboard();
+}
+
+function renderLeaderboard(){
+  var members=state.members.slice().map(function(m){return{m:m,pts:getBalance(m.id)};});
+  members.sort(function(a,b){return b.pts-a.pts;});
+  var max=members.length?Math.max(members[0].pts,1):1;
+  var ranks=['🥇','🥈','🥉'];
+  var rankClass=['gold','silver','bronze'];
+
+  // Quick-glance chips across the top
+  var chips=members.map(function(item,i){
+    var isTop=i===0&&item.pts>0;
+    return '<div class="lb-chip'+(isTop?' top':'')+'">'+
+      '<div class="lb-chip-pts">'+item.pts+'</div>'+
+      '<div class="lb-chip-name">'+item.m.name+'</div>'+
+    '</div>';
+  }).join('');
+
+  // Full ranked rows
+  var rows=members.map(function(item,i){
+    var pct=Math.round((item.pts/max)*100);
+    var rankIcon=i<3?ranks[i]:(i+1)+'';
+    var rc=i<3?rankClass[i]:'';
+    return '<div class="lb-row">'+
+      '<div class="lb-rank '+rc+'">'+rankIcon+'</div>'+
+      '<div class="lb-avatar" style="background:'+item.m.color+'">'+item.m.initial+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:baseline;justify-content:space-between">'+
+          '<div class="lb-name">'+item.m.name+'</div>'+
+          '<div class="lb-pts" style="color:'+item.m.color+'">'+item.pts+'<span style="font-size:13px;color:var(--muted)"> pts</span></div>'+
+        '</div>'+
+        '<div class="lb-bar-wrap"><div class="lb-bar" style="width:'+pct+'%;background:'+item.m.color+'"></div></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  document.getElementById('leaderboard-content').innerHTML=
+    '<div class="sec-hdr"><div class="sec-title">🏆 Leaderboard</div></div>'+
+    rows;
 }
 function openAddModal(){if(curTab==='calendar')openEventModal();else if(curTab==='chores')openChoreModal()}
 
@@ -1552,7 +1615,7 @@ function openEventModal(existingId){
   document.getElementById('ev-modal-title').textContent=existingId?'✏️ Edit Event':'📅 New Event';
   document.getElementById('ev-del-wrap').style.display=existingId?'block':'none';
   document.getElementById('ev-title').value=ev&&ev.title||'';
-  document.getElementById('ev-date').value=ev&&ev.date||dStr(calView==='day'?calDate:new Date());
+  document.getElementById('ev-date').value=ev&&ev.date||dStr(calDate);
   document.getElementById('ev-enddate').value=ev&&ev.endDate||'';
   document.getElementById('ev-start').value=ev&&ev.startTime||'';
   document.getElementById('ev-end').value=ev&&ev.endTime||'';
