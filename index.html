@@ -182,6 +182,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);heig
 .day-tabs::-webkit-scrollbar{display:none}
 .day-tab{flex-shrink:0;padding:7px 14px;border-radius:50px;border:none;font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;background:#eee;color:var(--muted);transition:all 0.15s}
 .day-tab.active{background:var(--red);color:#fff}
+.day-tab.today-tab{border:2px solid var(--red);color:var(--red)}
 .pcc{margin:0 14px 10px;border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
 .pcc-hdr{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;color:#fff}
 .pcc-hdr h3{font-family:'Fredoka One',cursive;font-size:17px}
@@ -638,7 +639,11 @@ create policy "public_access" on app_state
       </div>
     </div>
     <input type="file" id="csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="handleCSVUpload(this)">
-    <div class="day-tabs" id="chores-day-tabs"></div>
+    <div style="display:flex;align-items:center;gap:0;background:#fff;border-bottom:1px solid #f0f0f0;padding:0 8px">
+      <button onclick="shiftChoresDate(-1)" style="background:none;border:none;font-size:22px;padding:8px 6px;cursor:pointer;color:var(--muted)">‹</button>
+      <div class="day-tabs" id="chores-day-tabs" style="flex:1"></div>
+      <button onclick="shiftChoresDate(1)" style="background:none;border:none;font-size:22px;padding:8px 6px;cursor:pointer;color:var(--muted)">›</button>
+    </div>
     <div id="chores-day-content"></div>
   </div>
 
@@ -805,17 +810,7 @@ create policy "public_access" on app_state
       </label>
     </div>
     <div class="fg"><label class="fl">Assigned To</label><div class="m-selector" id="chore-members"></div></div>
-    <div class="fg"><label class="fl">Days of Week</label>
-      <div class="day-sel" id="chore-days">
-        <button class="day-sel-btn" data-day="6" onclick="toggleDay(this)">Sa</button>
-        <button class="day-sel-btn" data-day="0" onclick="toggleDay(this)">Su</button>
-        <button class="day-sel-btn" data-day="1" onclick="toggleDay(this)">Mo</button>
-        <button class="day-sel-btn" data-day="2" onclick="toggleDay(this)">Tu</button>
-        <button class="day-sel-btn" data-day="3" onclick="toggleDay(this)">We</button>
-        <button class="day-sel-btn" data-day="4" onclick="toggleDay(this)">Th</button>
-        <button class="day-sel-btn" data-day="5" onclick="toggleDay(this)">Fr</button>
-      </div>
-    </div>
+    <div class="fg"><label class="fl">Date</label><input class="fi" type="date" id="chore-date"></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveChore()">Save</button>
       <button class="btn btn-outline" onclick="closeModal('modal-chore')">Cancel</button>
@@ -1028,7 +1023,7 @@ let state={
   googleClientId:HARDCODED_GCAL_CLIENT_ID,googleToken:null,googleCalendars:[],gcalMappings:{}
 };
 let SB_URL='',SB_KEY=''; // stored in localStorage only
-let calView='month',calDate=new Date(),choresDayTab=6;
+let calView='month',calDate=new Date(),choresDayStr=todayStr();
 let redeemItemId=null,remInterval=null,memberEditColor='#FF6B6B';
 const firedRems=new Set();
 let saveTimer=null;
@@ -1037,6 +1032,7 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function pad(n){return String(n).padStart(2,'0')}
 function todayStr(){return dStr(new Date())}
 function dStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+function parseDate(s){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]))}
 function fmtTime(t){if(!t)return'';const[h,m]=t.split(':').map(Number);return`${h%12||12}:${pad(m)}${h>=12?'pm':'am'}`}
 function fmtDate(ds){if(!ds)return'';const d=new Date(ds+'T00:00:00');return`${d.getDate()} ${MS[d.getMonth()]} ${d.getFullYear()}`}
 
@@ -1278,8 +1274,8 @@ function bootApp(){
   try{document.getElementById('family-name-header').textContent=state.familyName||'Findlay Family Hub';}catch(e){}
   try{document.getElementById('rem-toggle-btn').textContent=state.remindersEnabled?'🔔':'🔕';}catch(e){}
   try{updateHeaderDate();}catch(e){}
-  try{buildChoresDayTabs();}catch(e){}
-  const today=new Date().getDay();choresDayTab=today;
+  choresDayStr=todayStr();
+  try{buildChoreDateStrip();}catch(e){}
   setTimeout(function(){try{var tabs=document.querySelectorAll('.day-tab');for(var ti=0;ti<tabs.length;ti++){tabs[ti].classList.toggle('active',CW[ti]===today);}}catch(e){}},50);
   try{renderHome();}catch(e){console.error('renderHome:',e);}
   try{renderCalendar();}catch(e){console.error('renderCalendar:',e);}
@@ -1400,7 +1396,7 @@ function renderHome(){
   if(!children.length){cl.innerHTML='';return}
   const dow=now.getDay();
   cl.innerHTML=children.map(ch=>{
-    const chores=state.chores.filter(c=>(c.memberIds||[]).includes(ch.id)&&(c.daysOfWeek||[]).includes(dow));
+    const chores=state.chores.filter(c=>(c.memberIds||[]).includes(ch.id)&&c.date===today);
     if(!chores.length)return'';
     return`<div class="card"><div class="card-title">${memberAvatar(ch,36,14)}${ch.name}</div>
       ${chores.map(c=>{const done=isChoreComplete(c.id,ch.id,today);
@@ -1710,22 +1706,37 @@ function viewEventDetail(evId){
 // ════════════════════════════════════════
 // CHORES
 // ════════════════════════════════════════
-function buildChoresDayTabs(){
-  document.getElementById('chores-day-tabs').innerHTML=CW.map((dow,i)=>`<button class="day-tab ${dow===choresDayTab?'active':''}" onclick="setChoresDay(${dow},this)">${CWL[i]}</button>`).join('');
+function buildChoreDateStrip(){
+  // Show 7 days centred on choresDayStr
+  var base=parseDate(choresDayStr);
+  var days=[];
+  for(var i=-3;i<=3;i++){var d=new Date(base);d.setDate(base.getDate()+i);days.push(d);}
+  var today=todayStr();
+  var DAY_ABBR=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  document.getElementById('chores-day-tabs').innerHTML=days.map(function(d){
+    var ds=dStr(d);var isActive=ds===choresDayStr;var isToday=ds===today;
+    return'<button class="day-tab'+(isActive?' active':'')+(isToday&&!isActive?' today-tab':'')+'" onclick="setChoresDate(\''+ds+'\')" style="min-width:44px;text-align:center;padding:7px 10px">'+
+      '<div style="font-size:10px;font-weight:800;letter-spacing:0.5px">'+DAY_ABBR[d.getDay()]+'</div>'+
+      '<div style="font-size:14px;font-weight:900">'+d.getDate()+'</div>'+
+    '</button>';
+  }).join('');
 }
-function setChoresDay(dow,btn){choresDayTab=dow;document.querySelectorAll('.day-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderChores()}
+function shiftChoresDate(delta){
+  var d=parseDate(choresDayStr);d.setDate(d.getDate()+delta);choresDayStr=dStr(d);buildChoreDateStrip();renderChores();
+}
+function setChoresDate(ds){choresDayStr=ds;buildChoreDateStrip();renderChores();}
 function renderChores(){
   const children=state.members.filter(m=>m.isChild);
   const content=document.getElementById('chores-day-content');
   if(!children.length){content.innerHTML='<div class="card"><div class="empty-state"><div class="emoji">👶</div><p>No children set up yet</p></div></div>';return}
 
-  const now=new Date();const diff=choresDayTab-now.getDay();const d=new Date(now);d.setDate(now.getDate()+diff);const ds=dStr(d);
+  const ds=choresDayStr;
 
   // Categorise each child — chores page shows POINTS chores only
   const withOutstanding=[];
   const allDoneOrEmpty=[];
   children.forEach(ch=>{
-    const chores=state.chores.filter(c=>!c.noPoints&&(c.memberIds||[]).includes(ch.id)&&(c.daysOfWeek||[]).includes(choresDayTab));
+    const chores=state.chores.filter(c=>!c.noPoints&&(c.memberIds||[]).includes(ch.id)&&c.date===ds);
     const hasAny=chores.length>0;
     const allDone=hasAny&&chores.every(c=>isChoreComplete(c.id,ch.id,ds));
     const noChores=!hasAny;
@@ -1747,9 +1758,12 @@ function renderChores(){
       </div>
       <div class="pcc-body">${!chores.length?'<p style="color:#bbb;text-align:center;padding:10px 0">No chores this day 🎉</p>'
         :chores.map(c=>{const done=isChoreComplete(c.id,ch.id,ds);
-          return`<div class="chore-item ${done?'done':''}" style="background:${ch.color}12;cursor:pointer" onclick="openChoreModal('${c.id}')">
-            <div class="chore-check ${done?'done':''}" style="color:${ch.color};border-color:${ch.color}" onclick="event.stopPropagation();toggleChore('${c.id}','${ch.id}','${ds}',this)"></div>
-            <span class="chore-label">${c.title}</span><span class="chore-pts" style="color:${ch.color}">${c.noPoints?'📋':'⭐'+(c.points||1)}</span></div>`;
+          return`<div class="chore-item ${done?'done':''}" style="background:${ch.color}12">
+            <div class="chore-check ${done?'done':''}" style="color:${ch.color};border-color:${ch.color}" onclick="toggleChore('${c.id}','${ch.id}','${ds}',this)"></div>
+            <span class="chore-label" style="flex:1">${c.title}</span>
+            <span class="chore-pts" style="color:${ch.color}">${c.noPoints?'📋':'⭐'+(c.points||1)}</span>
+            <button onclick="confirmDeleteChore('${c.id}')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:#ccc;margin-left:4px" title="Remove chore">🗑</button>
+          </div>`;
         }).join('')}</div></div>`;
   }
 
@@ -1767,6 +1781,13 @@ function renderChores(){
   }
 
   content.innerHTML=html;
+}
+function confirmDeleteChore(id){
+  const c=state.chores.find(x=>x.id===id);if(!c)return;
+  if(!confirm('Remove "'+c.title+'"?'))return;
+  state.chores=state.chores.filter(x=>x.id!==id);
+  state.choreCompletions=state.choreCompletions.filter(x=>x.choreId!==id);
+  save();renderChores();renderHome();showToast('Chore removed 🗑');
 }
 function isChoreComplete(cId,mId,ds){return state.choreCompletions.some(c=>c.choreId===cId&&c.memberId===mId&&c.date===ds)}
 function memberAvatar(m,size,fontSize){
@@ -1830,19 +1851,19 @@ function openChoreModal(existingId,presetMemberId){
     document.getElementById('nopts-knob').style.left=v?'23px':'3px';
     document.getElementById('chore-pts').closest('.fg').style.opacity=v?'0.3':'1';
   };
-  document.querySelectorAll('.day-sel-btn').forEach(b=>b.classList.toggle('selected',c?(c.daysOfWeek||[]).includes(parseInt(b.dataset.day)):false));
+  document.querySelectorAll('.day-sel-btn').forEach(b=>b.classList.toggle('selected',false));
+  document.getElementById('chore-date').value=c&&c.date||choresDayStr;
   buildMSelector('chore-members',c?c.memberIds||[]:(presetMemberId?[presetMemberId]:[]),true);
   openModal('modal-chore');
 }
 function saveChore(){
   const title=document.getElementById('chore-title').value.trim();if(!title){showToast('Enter a name');return}
   const memberIds=getSelMembers('chore-members');if(!memberIds.length){showToast('Assign to someone');return}
-  const daysOfWeek=Array.from(document.querySelectorAll('.day-sel-btn.selected')).map(b=>parseInt(b.dataset.day));
-  if(!daysOfWeek.length){showToast('Select at least one day');return}
+  const date=document.getElementById('chore-date').value;if(!date){showToast('Pick a date');return}
   const editId=document.getElementById('chore-edit-id').value;
   const m=state.members.find(m=>m.id===memberIds[0]);
   const noPoints=document.getElementById('chore-nopoints').checked;
-  const chore={id:editId||uid(),title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints,memberIds,daysOfWeek,color:m&&m.color||'#888'};
+  const chore={id:editId||uid(),title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints,memberIds,date,color:m&&m.color||'#888'};
   if(editId){const i=state.chores.findIndex(c=>c.id===editId);if(i>=0)state.chores[i]=chore}else state.chores.push(chore);
   save();closeModal('modal-chore');renderChores();renderHome();showToast(editId?'Chore updated ✅':'Chore added 🧹');
 }
@@ -1891,21 +1912,22 @@ function parseCSVLine(line){
   return fields;
 }
 
-function resolveDay(raw){
-  // Returns array of day-of-week ints (0=Sun..6=Sat)
-  if(!raw)return[];
+function resolveDate(raw){
+  // Returns a YYYY-MM-DD string or null
+  if(!raw)return null;
   const s=raw.trim().toLowerCase();
-  // Try day name
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){return s;}
+  // DD/MM/YYYY
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){const[a,b,y]=s.split('/');return y+'-'+b.padStart(2,'0')+'-'+a.padStart(2,'0');}
+  // Try day name — map to upcoming occurrence
   const di=DAY_NAMES.findIndex(d=>s.startsWith(d));
-  if(di>=0)return[di];
-  const si=DAY_SHORT.findIndex(d=>s.startsWith(d));
-  if(si>=0)return[si];
-  // Try date string YYYY-MM-DD or DD/MM/YYYY or MM/DD/YYYY
-  let d=null;
-  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){d=new Date(s+'T00:00:00');}
-  else if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){const[a,b,y]=s.split('/');d=new Date(`${y}-${b.padStart(2,'0')}-${a.padStart(2,'0')}T00:00:00`);}
-  if(d&&!isNaN(d))return[d.getDay()];
-  return[];
+  const si=di>=0?di:DAY_SHORT.findIndex(d=>s.startsWith(d));
+  if(si>=0){
+    const now=new Date();let diff=si-now.getDay();if(diff<0)diff+=7;
+    const d=new Date(now);d.setDate(now.getDate()+diff);return dStr(d);
+  }
+  return null;
 }
 
 function resolveMember(raw){
@@ -1947,16 +1969,16 @@ function parseCSVAndPreview(text){
     const pts=Math.max(0,parseInt(rawPts)||0);
     const noPoints=pts===0;
 
-    const days=resolveDay(rawDate);
+    const date=resolveDate(rawDate);
     const member=resolveMember(rawWho);
 
     let status='ok';
-    if(!days.length){status='warn';warnings.push(`Row ${i+1}: "${rawDate}" — could not parse day, defaulting to Monday`);}
+    if(!date){status='warn';warnings.push(`Row ${i+1}: "${rawDate}" — could not parse date, will use today`);}
     if(!member){status='warn';warnings.push(`Row ${i+1}: "${rawWho}" — no matching member found, will be unassigned`);}
 
     csvParsedRows.push({
       title,pts,noPoints,
-      days:days.length?days:[1], // default Monday
+      date:date||todayStr(),
       member,rawWho,rawDate,status,rowNum:i+1
     });
   }
@@ -1974,12 +1996,11 @@ function parseCSVAndPreview(text){
 
   document.getElementById('csv-preview-body').innerHTML=csvParsedRows.map(r=>{
     const memberName=r.member?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:${r.member.color};display:inline-block"></span>${r.member.name}</span>`:`<span style="color:#e57373">${r.rawWho||'—'}</span>`;
-    const dayNames=r.days.map(d=>DAYS[d].slice(0,3)).join(', ');
     const statusBadge=r.status==='ok'?'<span style="color:#2e7d32;font-size:16px">✓</span>':'<span style="color:#e65100;font-size:16px">⚠</span>';
     return`<tr style="border-bottom:1px solid #f5f5f5">
       <td style="padding:9px 12px;font-weight:700">${r.title}</td>
       <td style="padding:9px 12px">${memberName}</td>
-      <td style="padding:9px 12px;color:#666">${dayNames}</td>
+      <td style="padding:9px 12px;color:#666">${r.date}</td>
       <td style="padding:9px 12px;text-align:center">${r.noPoints?'—':r.pts+'⭐'}</td>
       <td style="padding:9px 12px;text-align:center">${statusBadge}</td>
     </tr>`;
@@ -1999,7 +2020,7 @@ function confirmCSVImport(){
     const m=r.member;
     const chore={
       id:uid(),title:r.title,points:r.pts,noPoints:r.noPoints,
-      memberIds,daysOfWeek:r.days,
+      memberIds,date:r.date,
       color:m&&m.color||'#888'
     };
     state.chores.push(chore);
@@ -2500,7 +2521,7 @@ function renderKidsTab(){
     const lv=getLevel(bal);
     const next=getNextLevel(bal);
     const streak=getStreak(ch.id);
-    const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(ch.id)&&(c.daysOfWeek||[]).includes(dow));
+    const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(ch.id)&&c.date===today);
     const doneCount=todayChores.filter(c=>isChoreComplete(c.id,ch.id,today)).length;
     const pct=todayChores.length?Math.round((doneCount/todayChores.length)*100):100;
     const xpPct=next?Math.round(((bal-getLevel(bal).min)/(next.min-getLevel(bal).min))*100):100;
@@ -2555,13 +2576,13 @@ function applyCustomAvatar(){
 }
 function openKidModal(mId){
   const ch=state.members.find(m=>m.id===mId);if(!ch)return;
-  const today=todayStr();const now=new Date();const dow=now.getDay();
+  const today=todayStr();
   const bal=getBalance(ch.id);
   const lv=getLevel(bal);const next=getNextLevel(bal);
   const streak=getStreak(ch.id);
   const badges=getBadges(mId);
   const xpPct=next?Math.round(((bal-lv.min)/(next.min-lv.min))*100):100;
-  const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(mId)&&(c.daysOfWeek||[]).includes(dow));
+  const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(mId)&&c.date===today);
   const ptChores=todayChores.filter(c=>!c.noPoints);
   const dutyChores=todayChores.filter(c=>c.noPoints);
   const doneCount=todayChores.filter(c=>isChoreComplete(c.id,mId,today)).length;
