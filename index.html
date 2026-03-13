@@ -729,6 +729,21 @@ create policy "public_access" on app_state
   </div>
 </div>
 
+<!-- AVATAR PICKER -->
+<div class="modal-overlay" id="modal-avatar-picker">
+  <div class="modal" style="max-height:60vh">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="font-size:18px">Pick an Avatar</div>
+    <input type="hidden" id="avatar-picker-mid">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:14px" id="avatar-picker-grid"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <input class="fi" id="avatar-picker-custom" maxlength="2" placeholder="Or type any emoji…" style="flex:1">
+      <button class="btn btn-ghost btn-sm" onclick="applyCustomAvatar()">Use</button>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="closeModal('modal-avatar-picker')" style="width:100%;justify-content:center">Cancel</button>
+  </div>
+</div>
+
 <!-- ══════════ MODALS ══════════ -->
 
 <!-- EVENT -->
@@ -2513,6 +2528,31 @@ function renderKidsTab(){
   }).join('');
 }
 
+function openAvatarPicker(mId){
+  document.getElementById('avatar-picker-mid').value=mId;
+  document.getElementById('avatar-picker-custom').value='';
+  var m=state.members.find(function(x){return x.id===mId;});
+  var cur=m&&m.avatarEmoji||'';
+  document.getElementById('avatar-picker-grid').innerHTML=AVATAR_EMOJIS.map(function(e){
+    return '<div class="avatar-emoji-opt'+(e===cur?' selected':'')+'" onclick="applyAvatar(\''+e+'\')" style="font-size:26px;width:48px;height:48px">'+e+'</div>';
+  }).join('')+'<div class="avatar-emoji-opt'+(cur===''?' selected':'')+'" onclick="applyAvatar(\'\')" style="font-size:20px;width:48px;height:48px;font-family:\'Fredoka One\',cursive;color:var(--muted)">A</div>';
+  openModal('modal-avatar-picker');
+}
+function applyAvatar(emoji){
+  var mId=document.getElementById('avatar-picker-mid').value;
+  var m=state.members.find(function(x){return x.id===mId;});
+  if(!m)return;
+  m.avatarEmoji=emoji||null;
+  save();
+  closeModal('modal-avatar-picker');
+  openKidModal(mId);
+  showToast(emoji?'Avatar updated '+emoji:'Avatar reset');
+}
+function applyCustomAvatar(){
+  var v=document.getElementById('avatar-picker-custom').value.trim();
+  if(!v){showToast('Type an emoji first');return;}
+  applyAvatar(v);
+}
 function openKidModal(mId){
   const ch=state.members.find(m=>m.id===mId);if(!ch)return;
   const today=todayStr();const now=new Date();const dow=now.getDay();
@@ -2532,7 +2572,10 @@ function openKidModal(mId){
     <!-- Header -->
     <div class="kid-modal-hdr" style="background:linear-gradient(135deg,${ch.color},${ch.color}bb)">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
-        ${ch.avatarEmoji?'<div style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:58px;height:58px;font-size:26px">${ch.initial}</div>`}
+        <div onclick="openAvatarPicker('${ch.id}')" style="cursor:pointer;position:relative">
+          ${ch.avatarEmoji?'<div style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:58px;height:58px;font-size:26px">${ch.initial}</div>`}
+          <div style="position:absolute;bottom:-2px;right:-2px;background:rgba(255,255,255,0.9);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px">✏️</div>
+        </div>
         <div>
           <div style="font-family:'Fredoka One',cursive;font-size:28px">${ch.name}</div>
           <div style="font-size:14px;opacity:0.85">${lv.icon} ${lv.name}${streak>=3?` &nbsp;🔥 ${streak}-day streak`:''}</div>
