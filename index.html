@@ -250,6 +250,13 @@ textarea.fi{resize:vertical;min-height:70px}
 .info-orange{background:#FFF3E0;color:#e65100}
 .info-green{background:#E8F5E9;color:#2e7d32}
 
+/* ── CHORE COMPLETION BURST ── */
+.chore-burst-star{position:fixed;pointer-events:none;z-index:9999;font-size:22px;animation:starBurst 0.8s ease-out forwards}
+@keyframes starBurst{0%{opacity:1;transform:translate(0,0) scale(0.5) rotate(0deg)}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(1.2) rotate(var(--rot))}}
+/* ── AVATAR EMOJI OPTION ── */
+.avatar-emoji-opt{font-size:24px;width:42px;height:42px;border-radius:50%;border:3px solid transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#f5f5f5;transition:all 0.15s}
+.avatar-emoji-opt.selected{border-color:var(--red);background:#FFF0F0;transform:scale(1.1)}
+
 /* ── LEADERBOARD ── */
 #leaderboard-content{padding:14px}
 .lb-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:14px;margin-bottom:8px;box-shadow:var(--shadow)}
@@ -949,6 +956,10 @@ create policy "public_access" on app_state
     <div class="modal-title" id="member-modal-title">👤 Add Member</div>
     <input type="hidden" id="member-edit-id">
     <div class="fg"><label class="fl">Name</label><input class="fi" id="member-name" placeholder="e.g. Emma" oninput="updateMemberPreview()"></div>
+    <div class="fg"><label class="fl">Avatar Emoji <span style="font-weight:600;color:#bbb">(optional — tap to pick)</span></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="avatar-emoji-grid"></div>
+      <input class="fi" id="member-avatar-emoji" maxlength="2" placeholder="Or type any emoji…" oninput="updateMemberPreview()" style="margin-top:8px">
+    </div>
     <div class="fg"><label class="fl">Role</label>
       <div style="display:flex;gap:8px">
         <button id="mrole-adult" class="role-btn active" onclick="setMemberRole('adult')">👨 Adult</button>
@@ -1332,7 +1343,7 @@ function renderLeaderboard(){
     var rc=i<3?rankClass[i]:'';
     return '<div class="lb-row">'+
       '<div class="lb-rank '+rc+'">'+rankIcon+'</div>'+
-      '<div class="lb-avatar" style="background:'+item.m.color+'">'+item.m.initial+'</div>'+
+      memberAvatar(item.m,34,13)+
       '<div style="flex:1;min-width:0">'+
         '<div style="display:flex;align-items:baseline;justify-content:space-between">'+
           '<div class="lb-name">'+item.m.name+'</div>'+
@@ -1376,7 +1387,7 @@ function renderHome(){
   cl.innerHTML=children.map(ch=>{
     const chores=state.chores.filter(c=>(c.memberIds||[]).includes(ch.id)&&(c.daysOfWeek||[]).includes(dow));
     if(!chores.length)return'';
-    return`<div class="card"><div class="card-title"><div class="m-avatar" style="background:${ch.color}">${ch.initial}</div>${ch.name}</div>
+    return`<div class="card"><div class="card-title">${memberAvatar(ch,36,14)}${ch.name}</div>
       ${chores.map(c=>{const done=isChoreComplete(c.id,ch.id,today);
         return`<div class="chore-item ${done?'done':''}" style="background:${ch.color}15">
           <div class="chore-check ${done?'done':''}" style="color:${ch.color};border-color:${ch.color}" onclick="toggleChore('${c.id}','${ch.id}','${today}',this)"></div>
@@ -1712,7 +1723,7 @@ function renderChores(){
     return`<div class="pcc" style="${opacity}">
       <div class="pcc-hdr" style="background:${ch.color}">
         <div style="display:flex;align-items:center;gap:10px">
-          <div class="m-avatar" style="background:rgba(255,255,255,0.3)">${ch.initial}</div>
+          ${ch.avatarEmoji?'<div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:44px;height:44px;font-size:18px">${ch.initial}</div>`}
           <h3>${ch.name}</h3>
           ${allDone?'<span style="background:rgba(255,255,255,0.25);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">✅ All done!</span>':''}
           ${noChores?'<span style="background:rgba(255,255,255,0.2);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">Free day 🎉</span>':''}
@@ -1743,18 +1754,44 @@ function renderChores(){
   content.innerHTML=html;
 }
 function isChoreComplete(cId,mId,ds){return state.choreCompletions.some(c=>c.choreId===cId&&c.memberId===mId&&c.date===ds)}
+function memberAvatar(m,size,fontSize){
+  size=size||36;fontSize=fontSize||14;
+  if(m.avatarEmoji){
+    return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:'+(size*0.5)+'px;background:'+m.color+';flex-shrink:0">'+m.avatarEmoji+'</div>';
+  }
+  return '<div class="m-avatar" style="background:'+m.color+';width:'+size+'px;height:'+size+'px;font-size:'+fontSize+'px;flex-shrink:0">'+m.initial+'</div>';
+}
+
+function choreBurst(el){
+  var emojis=['⭐','✨','🌟','💫','🎉'];
+  var rect=el?el.getBoundingClientRect():{left:window.innerWidth/2,top:window.innerHeight/2};
+  var cx=rect.left+rect.width/2;var cy=rect.top+rect.height/2;
+  for(var i=0;i<10;i++){
+    var star=document.createElement('div');
+    star.className='chore-burst-star';
+    star.textContent=emojis[i%emojis.length];
+    var angle=Math.random()*Math.PI*2;
+    var dist=50+Math.random()*60;
+    var tx=Math.cos(angle)*dist;
+    var ty=Math.sin(angle)*dist-30;
+    star.style.cssText='left:'+cx+'px;top:'+cy+'px;--tx:'+tx+'px;--ty:'+ty+'px;--rot:'+(Math.random()*360)+'deg;margin-left:-11px;margin-top:-11px;animation-delay:'+(Math.random()*0.15)+'s';
+    document.body.appendChild(star);
+    setTimeout(function(s){s.remove();},1000,star);
+  }
+}
+
 function toggleChore(cId,mId,ds,el){
   const done=isChoreComplete(cId,mId,ds);const chore=state.chores.find(c=>c.id===cId);
   if(done){
     state.choreCompletions=state.choreCompletions.filter(c=>!(c.choreId===cId&&c.memberId===mId&&c.date===ds));
     state.pointsTransactions=state.pointsTransactions.filter(t=>!(t.choreId===cId&&t.memberId===mId&&t.date===ds));
-    showToast('Chore unmarked');
+    showToast('↩️ Chore undone');
   }else{
     state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString()});
     const pts=chore&&chore.noPoints?0:(chore&&chore.points?chore.points:1);
-    if(pts>0){addPtsTx(mId,pts,`✅ ${chore&&chore.title||'Chore'}`,'chore',cId,ds);showPtBurst(`+${pts}⭐`,el);}
-    playChime();triggerConfetti(el);
-    showToast(pts>0?`+${pts} point${pts>1?'s':''}! ⭐`:`✅ ${chore&&chore.title||'Done'}!`);
+    if(pts>0){addPtsTx(mId,pts,'✅ '+(chore&&chore.title||'Chore'),'chore',cId,ds);showPtBurst('+'+pts+'⭐',el);}
+    playChime();choreBurst(el);triggerConfetti(el);
+    showToast(pts>0?'+'+pts+' point'+(pts>1?'s':'')+'! ⭐':'✅ '+(chore&&chore.title||'Done')+'!');
   }
   save();
   renderChores();
@@ -1970,7 +2007,7 @@ function addPtsTx(mId,amount,reason,type='manual',choreId=null,date=null){state.
 function renderPoints(){
   const children=state.members.filter(m=>m.isChild);
   document.getElementById('pts-balances').innerHTML=children.map(ch=>{const bal=getBalance(ch.id);
-    return`<div class="pts-mini"><div class="m-avatar" style="background:${ch.color};width:40px;height:40px;font-size:15px">${ch.initial}</div>
+    return`<div class="pts-mini">${memberAvatar(ch,40,15)}
       <div><div class="pts-bal" style="color:${ch.color}">${bal}</div><div class="pts-lbl">${ch.name}</div></div></div>`;
   }).join('');
   document.getElementById('store-list').innerHTML=state.storeItems.map(item=>`
@@ -2258,7 +2295,7 @@ function exportBackup(){
 function renderSettingsMembers(){
   document.getElementById('settings-members-list').innerHTML=state.members.map(m=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-      <div class="m-avatar" style="background:${m.color};width:42px;height:42px;font-size:16px">${m.initial}</div>
+      ${memberAvatar(m,42,16)}
       <div style="flex:1"><div style="font-weight:800;font-size:15px">${m.name}</div><div style="font-size:12px;color:#aaa;font-weight:600">${m.isChild?'Child':'Adult'}</div></div>
       <div style="width:20px;height:20px;border-radius:50%;background:${m.color};border:2px solid #ddd"></div>
       <button onclick="openMemberModal('${m.id}')" style="background:#f5f5f5;border:none;border-radius:10px;padding:7px 12px;font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer">✏️ Edit</button>
@@ -2272,7 +2309,26 @@ function buildColorSwatches(sel){
 }
 function selectSwatch(color,el){memberEditColor=color;document.querySelectorAll('.color-swatch').forEach(s=>{s.classList.remove('selected');s.innerHTML=''});el.classList.add('selected');el.innerHTML='<span style="color:#fff;font-weight:900;font-size:12px">✓</span>';document.getElementById('member-color-picker').value=color;updateMemberPreview()}
 function onColorPick(){memberEditColor=document.getElementById('member-color-picker').value;document.querySelectorAll('.color-swatch').forEach(s=>{s.classList.remove('selected');s.innerHTML=''});updateMemberPreview()}
-function updateMemberPreview(){const n=document.getElementById('member-name').value.trim();const av=document.getElementById('member-preview-avatar');av.textContent=n?n[0].toUpperCase():'?';av.style.background=memberEditColor}
+var AVATAR_EMOJIS=['🐶','🐱','🦁','🐻','🐼','🦊','🐨','🐯','🐸','🦋','🌈','⚡','🌟','🎮','🎨','🎵','🏆','🚀','🌺','🦄'];
+function buildAvatarEmojiGrid(sel){
+  document.getElementById('avatar-emoji-grid').innerHTML=AVATAR_EMOJIS.map(function(e){
+    return '<div class="avatar-emoji-opt'+(e===sel?' selected':'')+'" onclick="selectAvatarEmoji(\''+e+'\')">'+e+'</div>';
+  }).join('');
+}
+function selectAvatarEmoji(e){
+  document.getElementById('member-avatar-emoji').value=e;
+  document.querySelectorAll('.avatar-emoji-opt').forEach(function(el){el.classList.toggle('selected',el.textContent===e);});
+  updateMemberPreview();
+}
+function updateMemberPreview(){
+  var n=document.getElementById('member-name').value.trim();
+  var emoji=document.getElementById('member-avatar-emoji').value.trim();
+  var av=document.getElementById('member-preview-avatar');
+  av.style.background=memberEditColor;
+  av.textContent=emoji||(n?n[0].toUpperCase():'?');
+  // sync grid selection
+  document.querySelectorAll('.avatar-emoji-opt').forEach(function(el){el.classList.toggle('selected',el.textContent===emoji);});
+}
 function setMemberRole(r){document.getElementById('mrole-adult').classList.toggle('active',r==='adult');document.getElementById('mrole-child').classList.toggle('active',r==='child')}
 function openMemberModal(existingId){
   const m=existingId?state.members.find(x=>x.id===existingId):null;
@@ -2280,18 +2336,20 @@ function openMemberModal(existingId){
   document.getElementById('member-modal-title').textContent=existingId?'✏️ Edit Member':'👤 Add Member';
   document.getElementById('member-del-wrap').style.display=existingId?'block':'none';
   document.getElementById('member-name').value=m&&m.name||'';
+  document.getElementById('member-avatar-emoji').value=m&&m.avatarEmoji||'';
   memberEditColor=m&&m.color||PRESET_COLORS[state.members.length%PRESET_COLORS.length];
   document.getElementById('member-color-picker').value=memberEditColor;
-  setMemberRole(m&&m.isChild?'child':'adult');buildColorSwatches(memberEditColor);updateMemberPreview();
+  setMemberRole(m&&m.isChild?'child':'adult');buildColorSwatches(memberEditColor);buildAvatarEmojiGrid(m&&m.avatarEmoji||'');updateMemberPreview();
   openModal('modal-member');
 }
 function saveMember(){
   const name=document.getElementById('member-name').value.trim();if(!name){showToast('Enter a name');return}
   const isChild=document.getElementById('mrole-child').classList.contains('active');
+  const avatarEmoji=document.getElementById('member-avatar-emoji').value.trim()||null;
   const editId=document.getElementById('member-edit-id').value;
-  if(editId){const m=state.members.find(x=>x.id===editId);if(m){m.name=name;m.color=memberEditColor;m.isChild=isChild;m.initial=name[0].toUpperCase();state.chores.forEach(c=>{if((c.memberIds||[]).includes(editId)&&c.memberIds.length===1)c.color=memberEditColor})}}
-  else{if(state.members.length>=9){showToast('Max 9 members!');return}state.members.push({id:uid(),name,color:memberEditColor,isChild,initial:name[0].toUpperCase()})}
-  save();closeModal('modal-member');renderSettingsMembers();renderHome();renderChores();renderPoints();showToast(editId?`${name} updated ✅`:`${name} added 👋`);
+  if(editId){const m=state.members.find(x=>x.id===editId);if(m){m.name=name;m.color=memberEditColor;m.isChild=isChild;m.initial=name[0].toUpperCase();m.avatarEmoji=avatarEmoji;state.chores.forEach(c=>{if((c.memberIds||[]).includes(editId)&&c.memberIds.length===1)c.color=memberEditColor;});}}
+  else{if(state.members.length>=9){showToast('Max 9 members!');return}state.members.push({id:uid(),name:name,color:memberEditColor,isChild:isChild,initial:name[0].toUpperCase(),avatarEmoji:avatarEmoji});}
+  save();closeModal('modal-member');renderSettingsMembers();renderHome();renderChores();renderPoints();showToast(editId?name+' updated ✅':name+' added 👋');
 }
 function deleteMember(){
   const id=document.getElementById('member-edit-id').value;const m=state.members.find(x=>x.id===id);if(!m)return;
@@ -2433,7 +2491,7 @@ function renderKidsTab(){
     const xpPct=next?Math.round(((bal-getLevel(bal).min)/(next.min-getLevel(bal).min))*100):100;
     return`<div class="kid-card" onclick="openKidModal('${ch.id}')">
       <div class="kid-card-hdr" style="background:linear-gradient(135deg,${ch.color},${ch.color}cc)">
-        <div class="m-avatar" style="background:rgba(255,255,255,0.25);width:52px;height:52px;font-size:22px">${ch.initial}</div>
+        ${ch.avatarEmoji?'<div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:52px;height:52px;font-size:22px">${ch.initial}</div>`}
         <div style="flex:1">
           <div style="font-family:'Fredoka One',cursive;font-size:22px">${ch.name}</div>
           <div style="font-size:13px;opacity:0.85">${lv.icon} ${lv.name} · ⭐ ${bal} pts${streak>=3?` · 🔥${streak}`:''}</div>
@@ -2474,7 +2532,7 @@ function openKidModal(mId){
     <!-- Header -->
     <div class="kid-modal-hdr" style="background:linear-gradient(135deg,${ch.color},${ch.color}bb)">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
-        <div class="m-avatar" style="background:rgba(255,255,255,0.25);width:58px;height:58px;font-size:26px">${ch.initial}</div>
+        ${ch.avatarEmoji?'<div style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:58px;height:58px;font-size:26px">${ch.initial}</div>`}
         <div>
           <div style="font-family:'Fredoka One',cursive;font-size:28px">${ch.name}</div>
           <div style="font-size:14px;opacity:0.85">${lv.icon} ${lv.name}${streak>=3?` &nbsp;🔥 ${streak}-day streak`:''}</div>
