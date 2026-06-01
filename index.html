@@ -258,6 +258,12 @@ textarea.fi{resize:vertical;min-height:70px}
 .avatar-emoji-opt{font-size:24px;width:42px;height:42px;border-radius:50%;border:3px solid transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#f5f5f5;transition:all 0.15s}
 .avatar-emoji-opt.selected{border-color:var(--red);background:#FFF0F0;transform:scale(1.1)}
 
+/* ── PIN ── */
+.pin-key{font-family:'Fredoka One',cursive;font-size:22px;padding:14px 0;border-radius:50%;border:none;background:#f5f5f5;cursor:pointer;transition:background 0.1s;-webkit-tap-highlight-color:transparent}
+.pin-key:active{background:#e0e0e0}
+.pin-key-clear{background:#fff3f3;color:var(--red)}
+.pin-key-cancel{background:#f5f5f5;color:#aaa;font-size:18px}
+
 /* ── LEADERBOARD ── */
 #leaderboard-content{padding:14px}
 .lb-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:14px;margin-bottom:8px;box-shadow:var(--shadow)}
@@ -635,7 +641,6 @@ create policy "public_access" on app_state
       <div class="sec-title">🧹 Chores</div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('csv-upload-input').click()">📥 Import CSV</button>
-        <button class="btn btn-ghost btn-sm" onclick="shuffleChores()">🔀 Shuffle</button>
       </div>
     </div>
     <input type="file" id="csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="handleCSVUpload(this)">
@@ -888,6 +893,37 @@ create policy "public_access" on app_state
   </div>
 </div>
 
+<!-- PIN ENTRY -->
+<div class="modal-overlay" id="modal-pin">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="modal-handle"></div>
+    <div style="font-size:32px;margin-bottom:6px">🔒</div>
+    <div class="modal-title" id="pin-modal-title" style="margin-bottom:4px">Enter PIN</div>
+    <div style="font-size:13px;color:#aaa;font-weight:600;margin-bottom:18px" id="pin-modal-sub">Settings are PIN protected</div>
+    <div style="display:flex;justify-content:center;gap:10px;margin-bottom:20px" id="pin-dots">
+      <div style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd" id="pd0"></div>
+      <div style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd" id="pd1"></div>
+      <div style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd" id="pd2"></div>
+      <div style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd" id="pd3"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto 16px">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key pin-key-clear" onclick="pinClear()">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key pin-key-cancel" onclick="closeModal('modal-pin')">✕</button>
+    </div>
+    <div id="pin-error" style="color:#FF6B6B;font-size:13px;font-weight:700;min-height:18px"></div>
+  </div>
+</div>
+
 <!-- SETTINGS -->
 <div class="modal-overlay" id="modal-settings">
   <div class="modal">
@@ -935,6 +971,10 @@ create policy "public_access" on app_state
     <div id="stab-members" style="display:none">
       <div id="settings-members-list"></div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px" onclick="openMemberModal()">+ Add Family Member</button>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f0f0f0">
+        <div style="font-family:'Fredoka One',cursive;font-size:15px;color:#888;margin-bottom:10px">🔒 Settings PIN</div>
+        <div id="pin-status-row"></div>
+      </div>
     </div>
 
     <!-- DATABASE -->
@@ -1029,11 +1069,11 @@ const firedRems=new Set();
 let saveTimer=null;
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
-function pad(n){return String(n).padStart(2,'0')}
+function pad(n){return n<10?'0'+n:''+n}
 function todayStr(){return dStr(new Date())}
 function dStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
 function parseDate(s){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]))}
-function fmtTime(t){if(!t)return'';const[h,m]=t.split(':').map(Number);return`${h%12||12}:${pad(m)}${h>=12?'pm':'am'}`}
+function fmtTime(t){if(!t)return'';var _t=t.split(':');var h=Number(_t[0]);var m=Number(_t[1]);return(h%12||12)+':'+pad(m)+(h>=12?'pm':'am')}
 function fmtDate(ds){if(!ds)return'';const d=new Date(ds+'T00:00:00');return`${d.getDate()} ${MS[d.getMonth()]} ${d.getFullYear()}`}
 
 // ════════════════════════════════════════
@@ -1527,8 +1567,8 @@ function renderWeek(){
     let cells=HOURS.map(h=>`<div class="week-hr-line"></div>`).join('');
     const evChips=timedEvs.map(ev=>{
       const {style}=evColors(ev);
-      const[sh,sm]=ev.startTime.split(':').map(Number);
-      const[eh,em]=ev.endTime?ev.endTime.split(':').map(Number):[sh+1,sm];
+      var _st=ev.startTime.split(':');var sh=Number(_st[0]);var sm=Number(_st[1]);
+      var _et=ev.endTime?ev.endTime.split(':'):null;var eh=_et?Number(_et[0]):sh+1;var em=_et?Number(_et[1]):sm;
       const top=(sh-6)*48+(sm/60)*48;
       const height=Math.max(((eh-sh)*60+(em-sm))/60*48,24);
       return`<div class="week-ev-chip" style="${style};top:${top}px;height:${height}px" onclick="viewEventDetail('${ev.id}')">${ev.title}</div>`;
@@ -1580,8 +1620,8 @@ function renderDay(){
   const chips=timed.map(ev=>{
     const {style}=evColors(ev);
     const ms=(ev.memberIds||[]).map(id=>state.members.find(m=>m.id===id)).filter(Boolean);
-    const[sh,sm]=ev.startTime.split(':').map(Number);
-    const[eh,em]=ev.endTime?ev.endTime.split(':').map(Number):[sh+1,sm];
+    var _st=ev.startTime.split(':');var sh=Number(_st[0]);var sm=Number(_st[1]);
+    var _et=ev.endTime?ev.endTime.split(':'):null;var eh=_et?Number(_et[0]):sh+1;var em=_et?Number(_et[1]):sm;
     const top=(sh-6)*48+(sm/60)*48;
     const height=Math.max(((eh-sh)*60+(em-sm))/60*48,36);
     return`<div class="day-ev-block" style="position:absolute;top:${top}px;left:6px;right:6px;height:${height}px;${style};border-radius:10px;padding:6px 10px;cursor:pointer;overflow:hidden" onclick="viewEventDetail('${ev.id}')">
@@ -1919,7 +1959,7 @@ function resolveDate(raw){
   // YYYY-MM-DD
   if(/^\d{4}-\d{2}-\d{2}$/.test(s)){return s;}
   // DD/MM/YYYY
-  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){const[a,b,y]=s.split('/');return y+'-'+b.padStart(2,'0')+'-'+a.padStart(2,'0');}
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){var pts=s.split('/');return pts[2]+'-'+pad(parseInt(pts[1]))+'-'+pad(parseInt(pts[0]));}
   // Try day name — map to upcoming occurrence
   const di=DAY_NAMES.findIndex(d=>s.startsWith(d));
   const si=di>=0?di:DAY_SHORT.findIndex(d=>s.startsWith(d));
@@ -2209,7 +2249,7 @@ function connectGoogle(){
   state.googleClientId=cid;save();
   if(typeof google==='undefined'){showToast('Google library not loaded. Must be hosted online.');return}
   tokenClient=google.accounts.oauth2.initTokenClient({client_id:cid,scope:'https://www.googleapis.com/auth/calendar.readonly',
-    callback:async(resp)=>{if(resp.error){showToast('Auth failed: '+resp.error);return}
+    callback:function(resp){if(resp.error){showToast('Auth failed: '+resp.error);return}
       state.googleToken=resp.access_token;save();fetchGcalList();}});
   tokenClient.requestAccessToken();
 }
@@ -2278,23 +2318,109 @@ function disconnectGoogle(){state.googleToken=null;state.googleCalendars=[];stat
 // ════════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════════
+// ────────────────────────────────────────
+// PIN
+// ────────────────────────────────────────
+var pinBuffer='';
+var pinMode='enter'; // 'enter' | 'set' | 'confirm'
+var pinConfirmBuffer='';
+
 function openSettings(){
-  // GCal
-  const conn=!!state.googleToken;
+  if(state.settingsPin){
+    pinMode='enter';pinBuffer='';
+    document.getElementById('pin-modal-title').textContent='Enter PIN';
+    document.getElementById('pin-modal-sub').textContent='Settings are PIN protected';
+    document.getElementById('pin-error').textContent='';
+    updatePinDots();
+    openModal('modal-pin');
+  } else {
+    launchSettings();
+  }
+}
+
+function launchSettings(){
+  var conn=!!state.googleToken;
   document.getElementById('gcal-connected-banner').style.display=conn?'flex':'none';
   document.getElementById('gcal-setup-guide').style.display=conn?'none':'block';
   document.getElementById('gcal-cal-section').style.display=conn?'block':'none';
   document.getElementById('gcal-client-id').value=state.googleClientId||'';
-  if(conn){document.getElementById('gcal-conn-detail').textContent=`${state.googleCalendars.length} calendars`;renderGcalMappings()}
-  // DB fields
+  if(conn){document.getElementById('gcal-conn-detail').textContent=state.googleCalendars.length+' calendars';renderGcalMappings();}
   document.getElementById('db-url-edit').value=SB_URL;
   document.getElementById('db-key-edit').value=SB_KEY;
-  // Members
   renderSettingsMembers();
-  // Reset to gcal tab
-  document.querySelectorAll('.stab-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
-  ['stab-gcal','stab-members','stab-db'].forEach((id,i)=>document.getElementById(id).style.display=i===0?'block':'none');
+  document.querySelectorAll('.stab-btn').forEach(function(b,i){b.classList.toggle('active',i===0);});
+  ['stab-gcal','stab-members','stab-db'].forEach(function(id,i){document.getElementById(id).style.display=i===0?'block':'none';});
   openModal('modal-settings');
+}
+
+function pinKey(d){
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=d;
+  updatePinDots();
+  if(pinBuffer.length===4){
+    setTimeout(pinSubmit,120);
+  }
+}
+function pinClear(){
+  pinBuffer=pinBuffer.slice(0,-1);
+  updatePinDots();
+  document.getElementById('pin-error').textContent='';
+}
+function updatePinDots(){
+  for(var i=0;i<4;i++){
+    var dot=document.getElementById('pd'+i);
+    dot.style.background=i<pinBuffer.length?'var(--red)':'transparent';
+    dot.style.borderColor=i<pinBuffer.length?'var(--red)':'#ddd';
+  }
+}
+function pinSubmit(){
+  if(pinMode==='enter'){
+    if(pinBuffer===state.settingsPin){
+      closeModal('modal-pin');
+      setTimeout(launchSettings,200);
+    } else {
+      document.getElementById('pin-error').textContent='Wrong PIN — try again';
+      pinBuffer='';updatePinDots();
+      var el=document.getElementById('pin-dots');
+      el.style.transition='transform 0.05s';
+      var shakes=[8,-8,8,-8,0];var i=0;
+      function shake(){if(i<shakes.length){el.style.transform='translateX('+shakes[i]+'px)';i++;setTimeout(shake,60);}else{el.style.transform='';}}
+      shake();
+    }
+  } else if(pinMode==='set'){
+    pinConfirmBuffer=pinBuffer;pinBuffer='';
+    pinMode='confirm';
+    document.getElementById('pin-modal-title').textContent='Confirm PIN';
+    document.getElementById('pin-modal-sub').textContent='Enter the same PIN again';
+    document.getElementById('pin-error').textContent='';
+    updatePinDots();
+  } else if(pinMode==='confirm'){
+    if(pinBuffer===pinConfirmBuffer){
+      state.settingsPin=pinBuffer;save();
+      closeModal('modal-pin');
+      showToast('PIN set 🔒');
+    } else {
+      document.getElementById('pin-error').textContent="PINs don't match — start again";
+      pinBuffer='';pinConfirmBuffer='';pinMode='set';
+      document.getElementById('pin-modal-title').textContent='Set a PIN';
+      document.getElementById('pin-modal-sub').textContent='Choose a 4-digit PIN for Settings';
+      updatePinDots();
+    }
+  }
+}
+function promptSetPin(){
+  pinMode='set';pinBuffer='';pinConfirmBuffer='';
+  document.getElementById('pin-modal-title').textContent='Set a PIN';
+  document.getElementById('pin-modal-sub').textContent='Choose a 4-digit PIN for Settings';
+  document.getElementById('pin-error').textContent='';
+  updatePinDots();
+  openModal('modal-pin');
+}
+function clearPin(){
+  if(!state.settingsPin)return;
+  if(!confirm('Remove PIN protection from Settings?'))return;
+  state.settingsPin=null;save();showToast('PIN removed 🔓');
+  renderSettingsMembers();
 }
 function showStab(tab,btn){
   document.querySelectorAll('.stab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
@@ -2329,13 +2455,29 @@ function exportBackup(){
 // MEMBER MANAGEMENT
 // ════════════════════════════════════════
 function renderSettingsMembers(){
-  document.getElementById('settings-members-list').innerHTML=state.members.map(m=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-      ${memberAvatar(m,42,16)}
-      <div style="flex:1"><div style="font-weight:800;font-size:15px">${m.name}</div><div style="font-size:12px;color:#aaa;font-weight:600">${m.isChild?'Child':'Adult'}</div></div>
-      <div style="width:20px;height:20px;border-radius:50%;background:${m.color};border:2px solid #ddd"></div>
-      <button onclick="openMemberModal('${m.id}')" style="background:#f5f5f5;border:none;border-radius:10px;padding:7px 12px;font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer">✏️ Edit</button>
-    </div>`).join('');
+  document.getElementById('settings-members-list').innerHTML=state.members.map(function(m){return(
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'+
+      memberAvatar(m,42,16)+
+      '<div style="flex:1"><div style="font-weight:800;font-size:15px">'+m.name+'</div><div style="font-size:12px;color:#aaa;font-weight:600">'+(m.isChild?'Child':'Adult')+'</div></div>'+
+      '<div style="width:20px;height:20px;border-radius:50%;background:'+m.color+';border:2px solid #ddd"></div>'+
+      '<button onclick="openMemberModal(\''+m.id+'\')" style="background:#f5f5f5;border:none;border-radius:10px;padding:7px 12px;font-family:\'Nunito\';font-weight:800;font-size:13px;cursor:pointer">✏️ Edit</button>'+
+    '</div>'
+  );}).join('');
+  var pr=document.getElementById('pin-status-row');
+  if(!pr)return;
+  if(state.settingsPin){
+    pr.innerHTML='<div style="display:flex;align-items:center;gap:10px;background:#f0fff4;border-radius:12px;padding:10px 14px">'+
+      '<span style="font-size:20px">🔒</span>'+
+      '<div style="flex:1;font-size:13px;font-weight:700;color:#2e7d32">PIN is active</div>'+
+      '<button onclick="clearPin()" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Remove</button>'+
+    '</div>';
+  } else {
+    pr.innerHTML='<div style="display:flex;align-items:center;gap:10px;background:#f9f9f9;border-radius:12px;padding:10px 14px">'+
+      '<span style="font-size:20px">🔓</span>'+
+      '<div style="flex:1;font-size:13px;font-weight:600;color:#aaa">No PIN set — Settings open to all</div>'+
+      '<button onclick="promptSetPin()" class="btn btn-primary btn-sm">Set PIN</button>'+
+    '</div>';
+  }
 }
 function buildColorSwatches(sel){
   document.getElementById('color-swatch-grid').innerHTML=PRESET_COLORS.map(c=>`
