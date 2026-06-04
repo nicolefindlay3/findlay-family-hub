@@ -264,6 +264,16 @@ textarea.fi{resize:vertical;min-height:70px}
 .pin-key-clear{background:#fff3f3;color:var(--red)}
 .pin-key-cancel{background:#f5f5f5;color:#aaa;font-size:18px}
 
+/* ── EXTRA CHORES ── */
+.extra-section{margin:10px 0 0;padding:12px 16px;background:linear-gradient(135deg,#FFF8E7,#FFF3CD);border-radius:16px;border:2px dashed #FFD93D}
+.extra-section-title{font-family:'Fredoka One',cursive;font-size:15px;color:#F9A825;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.extra-chore-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(249,168,37,0.15)}
+.extra-chore-row:last-child{border-bottom:none}
+.extra-chore-title{flex:1;font-weight:700;font-size:14px;color:#555}
+.extra-chore-pts{font-family:'Fredoka One',cursive;font-size:13px;color:#F9A825;white-space:nowrap}
+.extra-claim-btn{background:#FFD93D;border:none;border-radius:20px;padding:5px 12px;font-family:'Nunito';font-weight:800;font-size:12px;cursor:pointer;color:#7B4F00;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.extra-claim-btn.done{background:#d4edda;color:#2e7d32}
+
 /* ── LEADERBOARD ── */
 #leaderboard-content{padding:14px}
 .lb-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:14px;margin-bottom:8px;box-shadow:var(--shadow)}
@@ -814,7 +824,18 @@ create policy "public_access" on app_state
         <span id="nopts-knob" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.3s"></span>
       </label>
     </div>
-    <div class="fg"><label class="fl">Assigned To</label><div class="m-selector" id="chore-members"></div></div>
+    <div class="fg" style="display:flex;align-items:center;justify-content:space-between;background:#FFF8E7;border-radius:13px;padding:12px 14px">
+      <div><div style="font-weight:800;font-size:14px">💫 Extra / Bonus chore</div><div style="font-size:12px;color:#aaa;font-weight:600">Optional — any child can pick this up for points</div></div>
+      <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+        <input type="checkbox" id="chore-isextra" style="opacity:0;width:0;height:0" onchange="toggleExtraChoreUI()">
+        <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:34px;transition:.3s" id="extra-slider"></span>
+        <span id="extra-knob" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.3s"></span>
+      </label>
+    </div>
+    <div class="fg" id="chore-assign-row"><label class="fl">Assigned To</label><div class="m-selector" id="chore-members"></div></div>
+    <div id="chore-extra-note" style="display:none;background:#FFF8E7;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;color:#F9A825;margin-bottom:4px">
+      🌟 Any child can claim this and earn the points — no one is pre-assigned.
+    </div>
     <div class="fg"><label class="fl">Date</label><input class="fi" type="date" id="chore-date"></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveChore()">Save</button>
@@ -1766,69 +1787,124 @@ function shiftChoresDate(delta){
 }
 function setChoresDate(ds){choresDayStr=ds;buildChoreDateStrip();renderChores();}
 function renderChores(){
-  var children=state.members.filter(function(m){return m.isChild;});
-  var content=document.getElementById('chores-day-content');
-  if(!children.length){content.innerHTML='<div class="card"><div class="empty-state"><div class="emoji">👶</div><p>No children set up yet</p></div></div>';return;}
-
   var ds=choresDayStr;
-  var withOutstanding=[];
-  var allDoneOrEmpty=[];
-
-  children.forEach(function(ch){
-    var chores=state.chores.filter(function(c){return !c.noPoints&&(c.memberIds||[]).indexOf(ch.id)>=0&&c.date===ds;});
-    var hasAny=chores.length>0;
-    var allDone=hasAny&&chores.every(function(c){return isChoreComplete(c.id,ch.id,ds);});
-    var noChores=!hasAny;
-    if(noChores||allDone){allDoneOrEmpty.push({ch:ch,chores:chores,allDone:allDone,noChores:noChores});}
-    else{withOutstanding.push({ch:ch,chores:chores,allDone:false,noChores:false});}
-  });
-
-  function renderCard(item,dimmed){
-    var ch=item.ch;var chores=item.chores;var allDone=item.allDone;var noChores=item.noChores;
-    var opacity=dimmed?'opacity:0.55;':'';
-    var avatarHtml=ch.avatarEmoji?
-      '<div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+ch.avatarEmoji+'</div>':
-      '<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:44px;height:44px;font-size:18px">'+ch.initial+'</div>';
-    var badgeHtml=(allDone?'<span style="background:rgba(255,255,255,0.25);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">All done! ✅</span>':'')
-      +(noChores?'<span style="background:rgba(255,255,255,0.2);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">Free day 🎉</span>':'');
-    var choreRows='';
-    if(!chores.length){
-      choreRows='<p style="color:#bbb;text-align:center;padding:10px 0">No chores this day 🎉</p>';
-    } else {
-      for(var ci=0;ci<chores.length;ci++){
-        var c=chores[ci];
-        var done=isChoreComplete(c.id,ch.id,ds);
-        choreRows+='<div class="chore-item '+(done?'done':'')+'" style="background:'+ch.color+'12">'+
-          '<div class="chore-check '+(done?'done':'')+'" style="color:'+ch.color+';border-color:'+ch.color+'" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\',this)"></div>'+
-          '<span class="chore-label" style="flex:1">'+c.title+'</span>'+
-          '<span class="chore-pts" style="color:'+ch.color+'">'+(c.noPoints?'📋':'⭐'+(c.points||1))+'</span>'+
-          '<button onclick="confirmDeleteChore(\''+c.id+'\')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:#ccc;margin-left:4px">🗑</button>'+
-        '</div>';
-      }
-    }
-    return '<div class="pcc" style="'+opacity+'">'+
-      '<div class="pcc-hdr" style="background:'+ch.color+'">'+
-        '<div style="display:flex;align-items:center;gap:10px">'+
-          avatarHtml+'<h3>'+ch.name+'</h3>'+badgeHtml+
-        '</div>'+
-        '<button onclick="openChoreModal(null,\''+ch.id+'\')" style="background:rgba(255,255,255,0.25);border:none;border-radius:50%;width:34px;height:34px;font-size:20px;cursor:pointer;color:#fff">+</button>'+
-      '</div>'+
-      '<div class="pcc-body">'+choreRows+'</div>'+
-    '</div>';
-  }
+  var content=document.getElementById('chores-day-content');
+  var children=state.members.filter(function(m){return m.isChild;});
 
   var html='';
-  for(var wi=0;wi<withOutstanding.length;wi++){html+=renderCard(withOutstanding[wi],false);}
-  if(allDoneOrEmpty.length){
-    if(withOutstanding.length){
-      html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 16px 4px">'+
-        '<div style="flex:1;height:1px;background:#e0e0e0"></div>'+
-        '<span style="font-size:11px;font-weight:800;color:#bbb;white-space:nowrap">COMPLETED / NO CHORES</span>'+
-        '<div style="flex:1;height:1px;background:#e0e0e0"></div></div>';
+  if(!children.length){
+    html='<div class="card"><div class="empty-state"><div class="emoji">👶</div><p>No children set up yet</p></div></div>';
+  } else {
+    var withOutstanding=[];
+    var allDoneOrEmpty=[];
+
+    children.forEach(function(ch){
+      var chores=state.chores.filter(function(c){return !c.noPoints&&!c.isExtra&&(c.memberIds||[]).indexOf(ch.id)>=0&&c.date===ds;});
+      var hasAny=chores.length>0;
+      var allDone=hasAny&&chores.every(function(c){return isChoreComplete(c.id,ch.id,ds);});
+      var noChores=!hasAny;
+      if(noChores||allDone){allDoneOrEmpty.push({ch:ch,chores:chores,allDone:allDone,noChores:noChores});}
+      else{withOutstanding.push({ch:ch,chores:chores,allDone:false,noChores:false});}
+    });
+
+    function renderCard(item,dimmed){
+      var ch=item.ch;var chores=item.chores;var allDone=item.allDone;var noChores=item.noChores;
+      var opacity=dimmed?'opacity:0.55;':'';
+      var avatarHtml=ch.avatarEmoji?
+        '<div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+ch.avatarEmoji+'</div>':
+        '<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:44px;height:44px;font-size:18px">'+ch.initial+'</div>';
+      var badgeHtml=(allDone?'<span style="background:rgba(255,255,255,0.25);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">All done! ✅</span>':'')
+        +(noChores?'<span style="background:rgba(255,255,255,0.2);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">Free day 🎉</span>':'');
+      var choreRows='';
+      if(!chores.length){
+        choreRows='<p style="color:#bbb;text-align:center;padding:10px 0">No chores this day 🎉</p>';
+      } else {
+        for(var ci=0;ci<chores.length;ci++){
+          var c=chores[ci];
+          var done=isChoreComplete(c.id,ch.id,ds);
+          choreRows+='<div class="chore-item '+(done?'done':'')+'" style="background:'+ch.color+'12">'+
+            '<div class="chore-check '+(done?'done':'')+'" style="color:'+ch.color+';border-color:'+ch.color+'" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\',this)"></div>'+
+            '<span class="chore-label" style="flex:1">'+c.title+'</span>'+
+            '<span class="chore-pts" style="color:'+ch.color+'">'+(c.noPoints?'📋':'⭐'+(c.points||1))+'</span>'+
+            '<button onclick="confirmDeleteChore(\''+c.id+'\')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:#ccc;margin-left:4px">🗑</button>'+
+          '</div>';
+        }
+      }
+      return '<div class="pcc" style="'+opacity+'">'+
+        '<div class="pcc-hdr" style="background:'+ch.color+'">'+
+          '<div style="display:flex;align-items:center;gap:10px">'+
+            avatarHtml+'<h3>'+ch.name+'</h3>'+badgeHtml+
+          '</div>'+
+          '<button onclick="openChoreModal(null,\''+ch.id+'\')" style="background:rgba(255,255,255,0.25);border:none;border-radius:50%;width:34px;height:34px;font-size:20px;cursor:pointer;color:#fff">+</button>'+
+        '</div>'+
+        '<div class="pcc-body">'+choreRows+'</div>'+
+      '</div>';
     }
-    for(var ai=0;ai<allDoneOrEmpty.length;ai++){html+=renderCard(allDoneOrEmpty[ai],true);}
+
+    for(var wi=0;wi<withOutstanding.length;wi++){html+=renderCard(withOutstanding[wi],false);}
+    if(allDoneOrEmpty.length){
+      if(withOutstanding.length){
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 16px 4px">'+
+          '<div style="flex:1;height:1px;background:#e0e0e0"></div>'+
+          '<span style="font-size:11px;font-weight:800;color:#bbb;white-space:nowrap">COMPLETED / NO CHORES</span>'+
+          '<div style="flex:1;height:1px;background:#e0e0e0"></div></div>';
+      }
+      for(var ai=0;ai<allDoneOrEmpty.length;ai++){html+=renderCard(allDoneOrEmpty[ai],true);}
+    }
   }
+
+  // ── EXTRA JOBS SECTION (always rendered regardless of children) ──
+  var extraChores=state.chores.filter(function(c){return c.isExtra&&c.date===ds;});
+  var allChildren=state.members.filter(function(m){return m.isChild;});
+  if(extraChores.length){
+    var extraHtml='<div class="extra-section">'+
+      '<div class="extra-section-title">'+
+        '💫 Extra Jobs'+
+        '<span style="font-size:12px;font-family:\'Nunito\';font-weight:700;color:#b8860b;margin-left:6px;opacity:0.8">Pick one up for bonus points!</span>'+
+        '<button onclick="openChoreModal()" style="margin-left:auto;background:rgba(249,168,37,0.15);border:none;border-radius:50%;width:28px;height:28px;font-size:18px;cursor:pointer;color:#F9A825;line-height:1">+</button>'+
+      '</div>';
+    for(var ei=0;ei<extraChores.length;ei++){
+      var ec=extraChores[ei];
+      var kidBtns='';
+      for(var ki=0;ki<allChildren.length;ki++){
+        var kid=allChildren[ki];
+        var done=isChoreComplete(ec.id,kid.id,ds);
+        kidBtns+='<button class="extra-claim-btn'+(done?' done':'')+'" onclick="claimExtra(\''+ec.id+'\',\''+kid.id+'\',\''+ds+'\',this)">'+
+          (done?'✅ ':'')+(kid.avatarEmoji||kid.initial)+
+        '</button>';
+      }
+      extraHtml+='<div class="extra-chore-row">'+
+        '<div style="flex:1">'+
+          '<div class="extra-chore-title">'+ec.title+'</div>'+
+          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0">'+
+          '<span class="extra-chore-pts">⭐'+(ec.points||1)+'</span>'+
+          '<button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button>'+
+        '</div>'+
+      '</div>';
+    }
+    extraHtml+='</div>';
+    html+=extraHtml;
+  }
+
   content.innerHTML=html;
+}
+function claimExtra(cId,mId,ds,el){
+  var done=isChoreComplete(cId,mId,ds);
+  var chore=state.chores.find(function(c){return c.id===cId;});
+  if(done){
+    state.choreCompletions=state.choreCompletions.filter(function(c){return!(c.choreId===cId&&c.memberId===mId&&c.date===ds);});
+    state.pointsTransactions=state.pointsTransactions.filter(function(t){return!(t.choreId===cId&&t.memberId===mId&&t.date===ds);});
+    showToast('↩️ Removed');
+  } else {
+    state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString()});
+    var pts=chore&&chore.points||1;
+    addPtsTx(mId,pts,'💫 '+(chore&&chore.title||'Extra'),'chore',cId,ds);
+    choreBurst(el);playChime();
+    showToast('+'+pts+' bonus point'+(pts>1?'s':'')+'! 💫');
+  }
+  save();renderChores();
 }
 function confirmDeleteChore(id){
   const c=state.chores.find(x=>x.id===id);if(!c)return;
@@ -1881,39 +1957,56 @@ function toggleChore(cId,mId,ds,el){
   renderChores();
   if(curTab==='home')renderHome();
 }
+function toggleExtraChoreUI(){
+  var isExtra=document.getElementById('chore-isextra').checked;
+  document.getElementById('extra-slider').style.background=isExtra?'#FFD93D':'#ccc';
+  document.getElementById('extra-knob').style.left=isExtra?'23px':'3px';
+  document.getElementById('chore-assign-row').style.display=isExtra?'none':'block';
+  document.getElementById('chore-extra-note').style.display=isExtra?'block':'none';
+  document.getElementById('chore-modal-title').textContent=isExtra?'💫 Extra Chore':(document.getElementById('chore-edit-id').value?'✏️ Edit Chore':'🧹 New Chore');
+}
 function openChoreModal(existingId,presetMemberId){
-  const c=existingId?state.chores.find(ch=>ch.id===existingId):null;
+  var c=existingId?state.chores.find(function(ch){return ch.id===existingId;}):null;
   document.getElementById('chore-edit-id').value=existingId||'';
-  document.getElementById('chore-modal-title').textContent=existingId?'✏️ Edit Chore':'🧹 New Chore';
+  var isExtra=c&&c.isExtra||false;
+  document.getElementById('chore-modal-title').textContent=isExtra?'💫 Extra Chore':(existingId?'✏️ Edit Chore':'🧹 New Chore');
   document.getElementById('chore-del-wrap').style.display=existingId?'block':'none';
   document.getElementById('chore-title').value=c&&c.title||'';
   document.getElementById('chore-pts').value=c&&c.points||1;
-  const np=c&&c.noPoints||false;
+  var np=c&&c.noPoints||false;
   document.getElementById('chore-nopoints').checked=np;
   document.getElementById('nopts-slider').style.background=np?'var(--red)':'#ccc';
   document.getElementById('nopts-knob').style.left=np?'23px':'3px';
   document.getElementById('chore-pts').closest('.fg').style.opacity=np?'0.3':'1';
   document.getElementById('chore-nopoints').onchange=function(){
-    const v=this.checked;
+    var v=this.checked;
     document.getElementById('nopts-slider').style.background=v?'var(--red)':'#ccc';
     document.getElementById('nopts-knob').style.left=v?'23px':'3px';
     document.getElementById('chore-pts').closest('.fg').style.opacity=v?'0.3':'1';
   };
-  document.querySelectorAll('.day-sel-btn').forEach(b=>b.classList.toggle('selected',false));
+  document.getElementById('chore-isextra').checked=isExtra;
+  document.getElementById('extra-slider').style.background=isExtra?'#FFD93D':'#ccc';
+  document.getElementById('extra-knob').style.left=isExtra?'23px':'3px';
+  document.getElementById('chore-assign-row').style.display=isExtra?'none':'block';
+  document.getElementById('chore-extra-note').style.display=isExtra?'block':'none';
+  document.getElementById('chore-assign-row').style.opacity='1';
+  document.getElementById('chore-assign-row').style.pointerEvents='auto';
   document.getElementById('chore-date').value=c&&c.date||choresDayStr;
-  buildMSelector('chore-members',c?c.memberIds||[]:(presetMemberId?[presetMemberId]:[]),true);
+  buildMSelector('chore-members',c&&!isExtra?c.memberIds||[]:(presetMemberId?[presetMemberId]:[]),true);
   openModal('modal-chore');
 }
 function saveChore(){
-  const title=document.getElementById('chore-title').value.trim();if(!title){showToast('Enter a name');return}
-  const memberIds=getSelMembers('chore-members');if(!memberIds.length){showToast('Assign to someone');return}
-  const date=document.getElementById('chore-date').value;if(!date){showToast('Pick a date');return}
-  const editId=document.getElementById('chore-edit-id').value;
-  const m=state.members.find(m=>m.id===memberIds[0]);
-  const noPoints=document.getElementById('chore-nopoints').checked;
-  const chore={id:editId||uid(),title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints,memberIds,date,color:m&&m.color||'#888'};
-  if(editId){const i=state.chores.findIndex(c=>c.id===editId);if(i>=0)state.chores[i]=chore}else state.chores.push(chore);
-  save();closeModal('modal-chore');renderChores();renderHome();showToast(editId?'Chore updated ✅':'Chore added 🧹');
+  var title=document.getElementById('chore-title').value.trim();if(!title){showToast('Enter a name');return;}
+  var isExtra=document.getElementById('chore-isextra').checked;
+  var memberIds=isExtra?[]:getSelMembers('chore-members');
+  if(!isExtra&&!memberIds.length){showToast('Assign to someone');return;}
+  var date=document.getElementById('chore-date').value;if(!date){showToast('Pick a date');return;}
+  var editId=document.getElementById('chore-edit-id').value;
+  var m=memberIds.length?state.members.find(function(x){return x.id===memberIds[0];}):null;
+  var noPoints=document.getElementById('chore-nopoints').checked;
+  var chore={id:editId||uid(),title:title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints:noPoints,isExtra:isExtra,memberIds:memberIds,date:date,color:m&&m.color||'#F9A825'};
+  if(editId){var i=state.chores.findIndex(function(c){return c.id===editId;});if(i>=0)state.chores[i]=chore;}else{state.chores.push(chore);}
+  save();closeModal('modal-chore');renderChores();renderHome();showToast(isExtra?'Extra chore added 💫':(editId?'Chore updated ✅':'Chore added 🧹'));
 }
 function deleteChore(){
   const id=document.getElementById('chore-edit-id').value;if(!id||!confirm('Delete this chore?'))return;
@@ -2732,7 +2825,8 @@ function openKidModal(mId){
   const streak=getStreak(ch.id);
   const badges=getBadges(mId);
   const xpPct=next?Math.round(((bal-lv.min)/(next.min-lv.min))*100):100;
-  const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(mId)&&c.date===today);
+  const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(mId)&&c.date===today&&!c.isExtra);
+  const extraAvail=state.chores.filter(c=>c.isExtra&&c.date===today);
   const ptChores=todayChores.filter(c=>!c.noPoints);
   const dutyChores=todayChores.filter(c=>c.noPoints);
   const doneCount=todayChores.filter(c=>isChoreComplete(c.id,mId,today)).length;
@@ -2806,6 +2900,21 @@ function openKidModal(mId){
     </div>`:''}
 
     ${!todayChores.length?'<div class="empty-state"><div class="emoji">🏖️</div><p>No jobs today — enjoy your day!</p></div>':''}
+
+    <!-- Extra / bonus chores -->
+    ${extraAvail.length?`<div style="font-family:'Fredoka One',cursive;font-size:16px;margin-bottom:8px;color:#F9A825">💫 Extra Jobs Available</div>
+    <div style="background:linear-gradient(135deg,#FFF8E7,#FFF3CD);border-radius:14px;padding:4px 14px;margin-bottom:12px;border:2px dashed #FFD93D">
+      ${extraAvail.map(c=>{const done=isChoreComplete(c.id,mId,today);
+        return`<div class="kid-chore-row">
+          <div class="kid-chore-check ${done?'done':''}" style="color:#F9A825;border-color:#FFD93D" onclick="claimExtra('${c.id}','${mId}','${today}',this);setTimeout(()=>openKidModal('${mId}'),400)"></div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px;text-decoration:${done?'line-through':''};color:${done?'#bbb':'inherit'}">${c.title}</div>
+            <div style="font-size:11px;color:#F9A825;font-weight:700">+${c.points} bonus pts</div>
+          </div>
+          ${done?'<span style="font-size:18px">✅</span>':'<span style="font-size:18px;opacity:0.4">💫</span>'}
+        </div>`;
+      }).join('')}
+    </div>`:''}
 
     <!-- Badges -->
     <div style="font-family:'Fredoka One',cursive;font-size:16px;margin-bottom:8px;color:${ch.color}">🏅 Badges</div>
