@@ -728,7 +728,8 @@ create policy "public_access" on app_state
     </div>
 
     <div style="margin-top:8px;font-size:11px;font-weight:700;color:#aaa">
-      CSV format: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px">chore, points, date due, who</code>
+      CSV format: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px">chore, points, date, who, type</code>
+      &nbsp;— set <b>type</b> to <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">extra</code> for bonus jobs (no <i>who</i> needed)
       &nbsp;·&nbsp; Date can be a day name (Monday) or date (2025-03-10) &nbsp;·&nbsp; "who" matches member names
     </div>
 
@@ -1865,24 +1866,41 @@ function renderChores(){
       '</div>';
     for(var ei=0;ei<extraChores.length;ei++){
       var ec=extraChores[ei];
-      var kidBtns='';
-      for(var ki=0;ki<allChildren.length;ki++){
-        var kid=allChildren[ki];
-        var done=isChoreComplete(ec.id,kid.id,ds);
-        kidBtns+='<button class="extra-claim-btn'+(done?' done':'')+'" onclick="claimExtra(\''+ec.id+'\',\''+kid.id+'\',\''+ds+'\',this)">'+
-          (done?'✅ ':'')+(kid.avatarEmoji||kid.initial)+
-        '</button>';
+      var isClaimed=ec.claimedBy;
+      var claimer=isClaimed?allChildren.find(function(k){return k.id===ec.claimedBy;}):null;
+      if(isClaimed){
+        // Show as taken — just one row, no buttons for others
+        extraHtml+='<div class="extra-chore-row" style="opacity:0.5">'+
+          '<div style="flex:1">'+
+            '<div class="extra-chore-title" style="text-decoration:line-through">'+ec.title+'</div>'+
+            '<div style="font-size:12px;color:#F9A825;font-weight:700;margin-top:4px">✅ Claimed by '+(claimer?claimer.name:'someone')+'</div>'+
+            '<button onclick="claimExtra(\''+ec.id+'\',\''+ec.claimedBy+'\',\''+ds+'\',this)" style="background:none;border:none;font-size:11px;color:#aaa;cursor:pointer;padding:2px 0;font-family:\'Nunito\';font-weight:700">↩ Undo</button>'+
+          '</div>'+
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0">'+
+            '<span class="extra-chore-pts">⭐'+(ec.points||1)+'</span>'+
+            '<button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button>'+
+          '</div>'+
+        '</div>';
+      } else {
+        // Available — show a button per child
+        var kidBtns='';
+        for(var ki=0;ki<allChildren.length;ki++){
+          var kid=allChildren[ki];
+          kidBtns+='<button class="extra-claim-btn" onclick="claimExtra(\''+ec.id+'\',\''+kid.id+'\',\''+ds+'\',this)">'+
+            (kid.avatarEmoji||kid.initial)+' '+kid.name+
+          '</button>';
+        }
+        extraHtml+='<div class="extra-chore-row">'+
+          '<div style="flex:1">'+
+            '<div class="extra-chore-title">'+ec.title+'</div>'+
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div>'+
+          '</div>'+
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0">'+
+            '<span class="extra-chore-pts">⭐'+(ec.points||1)+'</span>'+
+            '<button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button>'+
+          '</div>'+
+        '</div>';
       }
-      extraHtml+='<div class="extra-chore-row">'+
-        '<div style="flex:1">'+
-          '<div class="extra-chore-title">'+ec.title+'</div>'+
-          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div>'+
-        '</div>'+
-        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0">'+
-          '<span class="extra-chore-pts">⭐'+(ec.points||1)+'</span>'+
-          '<button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button>'+
-        '</div>'+
-      '</div>';
     }
     extraHtml+='</div>';
     html+=extraHtml;
@@ -1893,18 +1911,29 @@ function renderChores(){
 function claimExtra(cId,mId,ds,el){
   var done=isChoreComplete(cId,mId,ds);
   var chore=state.chores.find(function(c){return c.id===cId;});
+  if(!chore)return;
   if(done){
+    // Undo — clear claim
     state.choreCompletions=state.choreCompletions.filter(function(c){return!(c.choreId===cId&&c.memberId===mId&&c.date===ds);});
     state.pointsTransactions=state.pointsTransactions.filter(function(t){return!(t.choreId===cId&&t.memberId===mId&&t.date===ds);});
-    showToast('↩️ Removed');
+    chore.claimedBy=null;
+    showToast('↩️ Released back to the pool');
   } else {
+    // Check nobody else already claimed it
+    if(chore.claimedBy&&chore.claimedBy!==mId){
+      var claimer=state.members.find(function(m){return m.id===chore.claimedBy;});
+      showToast('Already claimed by '+(claimer?claimer.name:'someone')+' 🙅');
+      return;
+    }
     state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString()});
-    var pts=chore&&chore.points||1;
-    addPtsTx(mId,pts,'💫 '+(chore&&chore.title||'Extra'),'chore',cId,ds);
+    var pts=chore.points||1;
+    chore.claimedBy=mId;
+    addPtsTx(mId,pts,'💫 '+(chore.title||'Extra'),'chore',cId,ds);
     choreBurst(el);playChime();
     showToast('+'+pts+' bonus point'+(pts>1?'s':'')+'! 💫');
   }
   save();renderChores();
+  if(curTab==='kids')renderKidsTab();
 }
 function confirmDeleteChore(id){
   const c=state.chores.find(x=>x.id===id);if(!c)return;
@@ -2089,62 +2118,66 @@ function parseCSVAndPreview(text){
   if(!lines.length){showToast('Empty file');return;}
 
   // Detect header row
-  let startRow=0;
-  const firstLower=lines[0].toLowerCase();
-  if(firstLower.includes('chore')||firstLower.includes('task')||firstLower.includes('who')||firstLower.includes('name')){startRow=1;}
+  var startRow=0;
+  var firstLower=lines[0].toLowerCase();
+  if(firstLower.includes('chore')||firstLower.includes('task')||firstLower.includes('who')||firstLower.includes('name')||firstLower.includes('type')){startRow=1;}
 
   csvParsedRows=[];
-  const warnings=[];
+  var warnings=[];
 
-  for(let i=startRow;i<lines.length;i++){
-    const fields=parseCSVLine(lines[i]);
+  for(var i=startRow;i<lines.length;i++){
+    var fields=parseCSVLine(lines[i]);
     if(fields.length<1||!fields[0])continue;
-    const rawChore=fields[0]||'';
-    const rawPts=fields[1]||'1';
-    const rawDate=fields[2]||'';
-    const rawWho=fields[3]||'';
+    var rawChore=fields[0]||'';
+    var rawPts=fields[1]||'1';
+    var rawDate=fields[2]||'';
+    var rawWho=fields[3]||'';
+    var rawType=(fields[4]||'').trim().toLowerCase();
 
-    const title=rawChore.trim();
+    var title=rawChore.trim();
     if(!title)continue;
 
-    const pts=Math.max(0,parseInt(rawPts)||0);
-    const noPoints=pts===0;
+    var pts=Math.max(0,parseInt(rawPts)||0);
+    var noPoints=pts===0;
+    var isExtra=rawType==='extra'||rawType==='bonus'||rawType==='💫';
 
-    const date=resolveDate(rawDate);
-    const member=resolveMember(rawWho);
+    var date=resolveDate(rawDate);
+    var member=isExtra?null:resolveMember(rawWho);
 
-    let status='ok';
-    if(!date){status='warn';warnings.push(`Row ${i+1}: "${rawDate}" — could not parse date, will use today`);}
-    if(!member){status='warn';warnings.push(`Row ${i+1}: "${rawWho}" — no matching member found, will be unassigned`);}
+    var status='ok';
+    if(!date){status='warn';warnings.push('Row '+(i+1)+': "'+rawDate+'" — could not parse date, will use today');}
+    if(!isExtra&&!member&&rawWho){status='warn';warnings.push('Row '+(i+1)+': "'+rawWho+'" — no matching member found, will be unassigned');}
 
     csvParsedRows.push({
-      title,pts,noPoints,
+      title:title,pts:pts,noPoints:noPoints,isExtra:isExtra,
       date:date||todayStr(),
-      member,rawWho,rawDate,status,rowNum:i+1
+      member:member,rawWho:rawWho,rawDate:rawDate,rawType:rawType,status:status,rowNum:i+1
     });
   }
 
   if(!csvParsedRows.length){showToast('No valid rows found in CSV');document.getElementById('csv-upload-input').value='';return;}
 
   // Render preview
-  const ok=csvParsedRows.filter(r=>r.status==='ok').length;
-  const warn=csvParsedRows.filter(r=>r.status==='warn').length;
-  document.getElementById('csv-summary').textContent=`Found ${csvParsedRows.length} chore${csvParsedRows.length!==1?'s':''} · ${ok} ready · ${warn} with warnings`;
+  var ok=csvParsedRows.filter(function(r){return r.status==='ok';}).length;
+  var warn=csvParsedRows.filter(function(r){return r.status==='warn';}).length;
+  document.getElementById('csv-summary').textContent='Found '+csvParsedRows.length+' chore'+(csvParsedRows.length!==1?'s':'')+' · '+ok+' ready · '+warn+' with warnings';
 
-  const warnEl=document.getElementById('csv-warnings');
+  var warnEl=document.getElementById('csv-warnings');
   if(warnings.length){warnEl.style.display='block';warnEl.innerHTML='⚠️ '+warnings.join('<br>⚠️ ');}
-  else warnEl.style.display='none';
+  else{warnEl.style.display='none';}
 
-  document.getElementById('csv-preview-body').innerHTML=csvParsedRows.map(r=>{
-    const memberName=r.member?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:${r.member.color};display:inline-block"></span>${r.member.name}</span>`:`<span style="color:#e57373">${r.rawWho||'—'}</span>`;
-    const statusBadge=r.status==='ok'?'<span style="color:#2e7d32;font-size:16px">✓</span>':'<span style="color:#e65100;font-size:16px">⚠</span>';
-    return`<tr style="border-bottom:1px solid #f5f5f5">
-      <td style="padding:9px 12px;font-weight:700">${r.title}</td>
-      <td style="padding:9px 12px">${memberName}</td>
-      <td style="padding:9px 12px;color:#666">${r.date}</td>
-      <td style="padding:9px 12px;text-align:center">${r.noPoints?'—':r.pts+'⭐'}</td>
-      <td style="padding:9px 12px;text-align:center">${statusBadge}</td>
-    </tr>`;
+  document.getElementById('csv-preview-body').innerHTML=csvParsedRows.map(function(r){
+    var memberName=r.isExtra?
+      '<span style="color:#F9A825;font-weight:700">💫 Extra</span>':
+      (r.member?'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:'+r.member.color+';display:inline-block"></span>'+r.member.name+'</span>':'<span style="color:#e57373">'+(r.rawWho||'—')+'</span>');
+    var statusBadge=r.status==='ok'?'<span style="color:#2e7d32;font-size:16px">✓</span>':'<span style="color:#e65100;font-size:16px">⚠</span>';
+    return'<tr style="border-bottom:1px solid #f5f5f5">'+
+      '<td style="padding:9px 12px;font-weight:700">'+r.title+'</td>'+
+      '<td style="padding:9px 12px">'+memberName+'</td>'+
+      '<td style="padding:9px 12px;color:#666">'+r.date+'</td>'+
+      '<td style="padding:9px 12px;text-align:center">'+(r.noPoints?'—':r.pts+'⭐')+'</td>'+
+      '<td style="padding:9px 12px;text-align:center">'+statusBadge+'</td>'+
+    '</tr>';
   }).join('');
 
   openModal('modal-csv');
@@ -2152,17 +2185,17 @@ function parseCSVAndPreview(text){
 
 function confirmCSVImport(){
   if(!csvParsedRows.length)return;
-  const replace=document.getElementById('csv-replace').checked;
+  var replace=document.getElementById('csv-replace').checked;
   if(replace)state.chores=[];
 
-  let added=0;
-  csvParsedRows.forEach(r=>{
-    const memberIds=r.member?[r.member.id]:[];
-    const m=r.member;
-    const chore={
-      id:uid(),title:r.title,points:r.pts,noPoints:r.noPoints,
-      memberIds,date:r.date,
-      color:m&&m.color||'#888'
+  var added=0;
+  csvParsedRows.forEach(function(r){
+    var memberIds=(!r.isExtra&&r.member)?[r.member.id]:[];
+    var m=r.member;
+    var chore={
+      id:uid(),title:r.title,points:r.pts,noPoints:r.noPoints,isExtra:r.isExtra||false,
+      memberIds:memberIds,date:r.date,
+      color:m&&m.color||'#F9A825'
     };
     state.chores.push(chore);
     added++;
@@ -2173,7 +2206,7 @@ function confirmCSVImport(){
   document.getElementById('csv-upload-input').value='';
   csvParsedRows=[];
   renderChores();renderHome();
-  showToast(`Imported ${added} chore${added!==1?'s':''}! 🧹`);
+  showToast('Imported '+added+' chore'+(added!==1?'s':'')+'! 🧹');
 }
 
 // ════════════════════════════════════════
