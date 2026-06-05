@@ -1822,13 +1822,20 @@ function renderChores(){
       } else {
         for(var ci=0;ci<chores.length;ci++){
           var c=chores[ci];
-          var done=isChoreComplete(c.id,ch.id,ds);
-          choreRows+='<div class="chore-item '+(done?'done':'')+'" style="background:'+ch.color+'12">'+
-            '<div class="chore-check '+(done?'done':'')+'" style="color:'+ch.color+';border-color:'+ch.color+'" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\',this)"></div>'+
-            '<span class="chore-label" style="flex:1">'+c.title+'</span>'+
-            '<span class="chore-pts" style="color:'+ch.color+'">'+(c.noPoints?'📋':'⭐'+(c.points||1))+'</span>'+
-            '<button onclick="confirmDeleteChore(\''+c.id+'\')" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:#ccc;margin-left:4px">🗑</button>'+
-          '</div>';
+          var comp=getChoreCompletion(c.id,ch.id,ds);
+          var done=!!comp;
+          var byParent=done&&comp.parentDid;
+          var checkStyle='color:'+ch.color+';border-color:'+ch.color;
+          var rowBg='background:'+ch.color+'12';
+          if(byParent){checkStyle='color:#e57373;border-color:#e57373';rowBg='background:#fff0f0';}
+          choreRows+=
+            '<div class="chore-item '+(done?'done':'')+'" style="'+rowBg+'">'+
+            '<div class="chore-check '+(done?'done':'')+'" style="'+checkStyle+'" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\',this)">'+(byParent?'<span style="font-size:11px">👤</span>':'')+'</div>'+
+            '<span class="chore-label" style="flex:1;'+(byParent?'color:#e57373;':'')+'">'+c.title+(byParent?' <span style="font-size:11px;font-weight:700;color:#e57373">(parent did it)</span>':'')+'</span>'+
+            '<span class="chore-pts" style="color:'+(byParent?'#e57373':ch.color)+'">'+(byParent?'-1⭐':(c.noPoints?'📋':'⭐'+(c.points||1)))+'</span>'+
+            '<button onclick="parentDidChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\')" title="Parent did it — child loses 1 point" style="background:none;border:none;font-size:14px;cursor:pointer;padding:2px 4px;color:'+(byParent?'#e57373':'#ccc')+';margin-left:2px">👤</button>'+
+            '<button onclick="confirmDeleteChore(\''+c.id+'\')" style="background:none;border:none;font-size:14px;cursor:pointer;padding:2px 4px;color:#ccc;margin-left:0">🗑</button>'+
+            '</div>';
         }
       }
       return '<div class="pcc" style="'+opacity+'">'+
@@ -1942,7 +1949,29 @@ function confirmDeleteChore(id){
   state.choreCompletions=state.choreCompletions.filter(x=>x.choreId!==id);
   save();renderChores();renderHome();showToast('Chore removed 🗑');
 }
-function isChoreComplete(cId,mId,ds){return state.choreCompletions.some(c=>c.choreId===cId&&c.memberId===mId&&c.date===ds)}
+function isChoreComplete(cId,mId,ds){return state.choreCompletions.some(function(c){return c.choreId===cId&&c.memberId===mId&&c.date===ds;})}
+function getChoreCompletion(cId,mId,ds){return state.choreCompletions.find(function(c){return c.choreId===cId&&c.memberId===mId&&c.date===ds;})||null;}
+function parentDidChore(cId,mId,ds){
+  var comp=getChoreCompletion(cId,mId,ds);
+  var chore=state.chores.find(function(c){return c.id===cId;});
+  if(comp&&comp.parentDid){
+    // Undo parent-did
+    state.choreCompletions=state.choreCompletions.filter(function(c){return!(c.choreId===cId&&c.memberId===mId&&c.date===ds);});
+    state.pointsTransactions=state.pointsTransactions.filter(function(t){return!(t.choreId===cId&&t.memberId===mId&&t.date===ds);});
+    showToast('↩️ Penalty removed');
+  } else if(comp){
+    // Already done by child — ignore
+    showToast('Already done by the child ✅');
+    return;
+  } else {
+    // Parent did it — mark done + deduct 1 point
+    state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString(),parentDid:true});
+    addPtsTx(mId,-1,'👤 '+(chore&&chore.title||'Chore')+' (parent did it)','chore',cId,ds);
+    showToast('Marked as parent-done. -1 point 👤');
+  }
+  save();renderChores();renderHome();
+  if(curTab==='kids')renderKidsTab();
+}
 function memberAvatar(m,size,fontSize){
   size=size||36;fontSize=fontSize||14;
   if(m.avatarEmoji){
@@ -1970,14 +1999,17 @@ function choreBurst(el){
 }
 
 function toggleChore(cId,mId,ds,el){
-  const done=isChoreComplete(cId,mId,ds);const chore=state.chores.find(c=>c.id===cId);
+  var comp=getChoreCompletion(cId,mId,ds);
+  var done=!!comp;
+  var chore=state.chores.find(function(c){return c.id===cId;});
   if(done){
-    state.choreCompletions=state.choreCompletions.filter(c=>!(c.choreId===cId&&c.memberId===mId&&c.date===ds));
-    state.pointsTransactions=state.pointsTransactions.filter(t=>!(t.choreId===cId&&t.memberId===mId&&t.date===ds));
+    if(comp.parentDid){showToast('Use 👤 to undo a parent-done chore');return;}
+    state.choreCompletions=state.choreCompletions.filter(function(c){return!(c.choreId===cId&&c.memberId===mId&&c.date===ds);});
+    state.pointsTransactions=state.pointsTransactions.filter(function(t){return!(t.choreId===cId&&t.memberId===mId&&t.date===ds);});
     showToast('↩️ Chore undone');
   }else{
     state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString()});
-    const pts=chore&&chore.noPoints?0:(chore&&chore.points?chore.points:1);
+    var pts=chore&&chore.noPoints?0:(chore&&chore.points?chore.points:1);
     if(pts>0){addPtsTx(mId,pts,'✅ '+(chore&&chore.title||'Chore'),'chore',cId,ds);showPtBurst('+'+pts+'⭐',el);}
     playChime();choreBurst(el);triggerConfetti(el);
     showToast(pts>0?'+'+pts+' point'+(pts>1?'s':'')+'! ⭐':'✅ '+(chore&&chore.title||'Done')+'!');
