@@ -108,8 +108,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);heig
 
 /* ── HOME ── */
 #today-banner{margin:14px;padding:18px 20px;border-radius:22px;background:linear-gradient(135deg,#FF6B6B,#FF8E53);color:#fff;box-shadow:0 8px 24px rgba(255,107,107,0.28)}
-#today-banner .big-date{font-family:'Fredoka One',cursive;font-size:32px;line-height:1}
-#today-banner .day-name{font-size:15px;opacity:0.85;font-weight:600;margin-top:2px}
+#today-banner .big-date{font-family:'Fredoka One',cursive;font-size:28px;line-height:1.1}city:0.85;font-weight:600;margin-top:2px}
 .ev-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer}
 .ev-item:last-child{border-bottom:none}
 .ev-time{font-size:11px;font-weight:800;color:var(--muted);width:46px;flex-shrink:0}
@@ -548,6 +547,7 @@ create policy "public_access" on app_state
     <div class="hdr-actions">
       <span id="sync-indicator">✓ synced</span>
       <button class="hdr-btn" id="rem-toggle-btn" onclick="toggleReminders()">🔔</button>
+      <button class="hdr-btn" onclick="openMsgModal()" title="Important message">📢</button>
       <button class="hdr-btn" onclick="openSettings()">⚙️</button>
     </div>
   </div>
@@ -583,20 +583,19 @@ create policy "public_access" on app_state
   <div class="tab-panel active" id="tab-home">
     <div id="today-banner">
       <div class="big-date" id="home-big-date"></div>
-      <div class="day-name" id="home-day-name"></div>
     </div>
 
     <!-- IMPORTANT MESSAGES -->
     <div id="important-msgs-section" style="display:none">
       <div style="display:flex;align-items:center;gap:8px;padding:0 2px 8px">
         <div style="font-family:'Fredoka One',cursive;font-size:16px;color:#e53935">📢 Important</div>
-        <button onclick="openMsgModal()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:#e53935;padding:0">+</button>
+        <button onclick="openMsgModal()" style="margin-left:auto;background:none;border:none;font-size:18px;cursor:pointer;color:#e53935;padding:0">+</button>
       </div>
       <div id="important-msgs-list"></div>
     </div>
 
-    <div class="card">
-      <div class="card-title">📅 Today's Events</div>
+    <div class="card" id="events-card" style="display:none">
+      <div class="card-title">📅 Upcoming Events</div>
       <div id="todays-events-list"></div>
     </div>
     <div class="sec-hdr"><div class="sec-title">🧹 Today's Chores</div></div>
@@ -1427,9 +1426,7 @@ function updateHeaderDate(){
   if(timeEl) timeEl.innerHTML=timeStr;
   // Also update home banner
   const bigDate=document.getElementById('home-big-date');
-  const dayName=document.getElementById('home-day-name');
-  if(bigDate) bigDate.textContent=`${n.getDate()} ${MS[n.getMonth()]}`;
-  if(dayName) dayName.textContent=DAYS[n.getDay()];
+  if(bigDate) bigDate.textContent=DAYS[n.getDay()]+' '+n.getDate()+' '+MS[n.getMonth()];
 }
 
 // ════════════════════════════════════════
@@ -1498,20 +1495,36 @@ function openAddModal(){if(curTab==='calendar')openEventModal();else if(curTab==
 function renderHome(){
   renderImportantMsgs();
   const today=todayStr();const now=new Date();
-  const evList=document.getElementById('todays-events-list');
-  const todayEvs=getEventsForDate(today).sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
-  if(!todayEvs.length){
-    evList.innerHTML='<div class="empty-state"><div class="emoji">🎉</div><p>Nothing scheduled today!</p></div>';
+  var evList=document.getElementById('todays-events-list');
+  var evCard=document.getElementById('events-card');
+  var tomorrowDate=new Date();tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  var tomorrow=dStr(tomorrowDate);
+  var todayEvs=getEventsForDate(today).sort(function(a,b){return(a.startTime||'').localeCompare(b.startTime||'');});
+  var tomEvs=getEventsForDate(tomorrow).sort(function(a,b){return(a.startTime||'').localeCompare(b.startTime||'');});
+  if(!todayEvs.length&&!tomEvs.length){
+    evCard.style.display='none';
   }else{
-    evList.innerHTML=todayEvs.map(ev=>{
-      const ms=(ev.memberIds||[]).map(id=>state.members.find(m=>m.id===id)).filter(Boolean);
-      const color=ms[0]&&ms[0].color||'#888';
-      return`<div class="ev-item" onclick="viewEventDetail('${ev.id}')">
-        <div class="ev-time">${fmtTime(ev.startTime)}</div>
-        <div class="ev-bar" style="background:${color}"></div>
-        <div style="flex:1"><div class="ev-title">${ev.title}</div><div class="ev-who">${ms.map(m=>m.name).join(', ')||'Family'}</div></div>
-        <span style="color:#ddd">›</span></div>`;
-    }).join('');
+    evCard.style.display='block';
+    function evRow(ev,label){
+      var ms=(ev.memberIds||[]).map(function(id){return state.members.find(function(m){return m.id===id;});}).filter(Boolean);
+      var color=ms[0]&&ms[0].color||'#888';
+      return '<div class="ev-item" onclick="viewEventDetail(\''+ev.id+'\')">'+
+        (label?'<div style="font-size:10px;font-weight:800;color:'+color+';white-space:nowrap;margin-right:2px">'+label+'</div>':'<div class="ev-time">'+fmtTime(ev.startTime)+'</div>')+
+        '<div class="ev-bar" style="background:'+color+'"></div>'+
+        '<div style="flex:1"><div class="ev-title">'+ev.title+'</div>'+
+        '<div class="ev-who">'+(ms.map(function(m){return m.name;}).join(', ')||'Family')+'</div></div>'+
+        '<span style="color:#ddd">›</span></div>';
+    }
+    var html='';
+    if(todayEvs.length){
+      if(tomEvs.length) html+='<div style="font-size:11px;font-weight:800;color:#aaa;padding:4px 0 6px;letter-spacing:0.5px">TODAY</div>';
+      html+=todayEvs.map(function(ev){return evRow(ev,null);}).join('');
+    }
+    if(tomEvs.length){
+      if(todayEvs.length) html+='<div style="font-size:11px;font-weight:800;color:#aaa;padding:10px 0 6px;letter-spacing:0.5px">TOMORROW</div>';
+      html+=tomEvs.map(function(ev){return evRow(ev,null);}).join('');
+    }
+    evList.innerHTML=html;
   }
   const cl=document.getElementById('todays-chores-list');
   const children=state.members.filter(m=>m.isChild);
