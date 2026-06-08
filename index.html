@@ -264,11 +264,15 @@ textarea.fi{resize:vertical;min-height:70px}
 .pin-key-cancel{background:#f5f5f5;color:#aaa;font-size:18px}
 
 /* ── HOME CHORE QUADRANTS ── */
-.home-chores-grid{display:grid;grid-template-columns:1fr;gap:8px}
-.home-chore-quad{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.home-chores-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.home-chore-quad{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.07)}
+.quad-child-name{font-weight:900;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quad-chore-label{font-size:13px}
 @media(min-width:768px){
-  .home-chores-grid{grid-template-columns:1fr 1fr}
-  .home-chore-quad .chore-item{padding:5px 8px!important}
+  .home-chores-grid{grid-template-columns:1fr 1fr;gap:14px}
+  .home-chore-quad .chore-item{padding:7px 10px!important}
+  .quad-child-name{font-size:17px}
+  .quad-chore-label{font-size:14px}
 }
 
 /* ── ALARMS ── */
@@ -1650,36 +1654,43 @@ function renderHome(){
   var cl=document.getElementById('todays-chores-list');
   var children=state.members.filter(function(m){return m.isChild;});
   if(!children.length){cl.innerHTML='';return;}
+  // Desired display order
+  var ORDER=['m-amelia','m-dutic','m-harry','m-jimmy','m-jj'];
+  children.sort(function(a,b){
+    var ai=ORDER.indexOf(a.id);var bi=ORDER.indexOf(b.id);
+    if(ai<0)ai=99;if(bi<0)bi=99;return ai-bi;
+  });
   var cards=children.map(function(ch){
     var chores=state.chores.filter(function(c){return (c.memberIds||[]).indexOf(ch.id)>=0&&c.date===today&&!c.isExtra;});
-    if(!chores.length)return'';
+    if(!chores.length)return ''; // hide on home if no jobs
     var done=chores.filter(function(c){return isChoreComplete(c.id,ch.id,today);}).length;
     var total=chores.length;
     var allDone=done===total;
     var pct=Math.round((done/total)*100);
     var avatarHtml=ch.avatarEmoji?
-      '<div style="width:32px;height:32px;border-radius:50%;background:'+ch.color+'33;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+ch.avatarEmoji+'</div>':
-      '<div style="width:32px;height:32px;border-radius:50%;background:'+ch.color+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0">'+ch.initial+'</div>';
+      '<div style="width:36px;height:36px;border-radius:50%;background:'+ch.color+'33;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+ch.avatarEmoji+'</div>':
+      '<div style="width:36px;height:36px;border-radius:50%;background:'+ch.color+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;flex-shrink:0">'+ch.initial+'</div>';
     var choreRows=chores.map(function(c){
       var isDone=isChoreComplete(c.id,ch.id,today);
       var comp=getChoreCompletion(c.id,ch.id,today);
       var byParent=isDone&&comp&&comp.parentDid;
-      return '<div class="chore-item '+(isDone?'done':'')+'" style="background:'+(byParent?'#fff0f0':ch.color+'10')+';padding:6px 8px">'+
-        '<div class="chore-check '+(isDone?'done':'')+'" style="color:'+(byParent?'#e57373':ch.color)+';border-color:'+(byParent?'#e57373':ch.color)+';width:18px;height:18px;min-width:18px" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+today+'\',this)">'+(byParent?'<span style="font-size:9px">👤</span>':'')+'</div>'+
-        '<span class="chore-label" style="font-size:12px;'+(isDone?'text-decoration:line-through;color:#bbb;':'')+'">'+c.title+'</span>'+
+      return '<div class="chore-item '+(isDone?'done':'')+'" style="background:'+(byParent?'#fff0f0':ch.color+'10')+';padding:7px 10px">'+
+        '<div class="chore-check '+(isDone?'done':'')+'" style="color:'+(byParent?'#e57373':ch.color)+';border-color:'+(byParent?'#e57373':ch.color)+';width:20px;height:20px;min-width:20px" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+today+'\',this)">'+(byParent?'<span style="font-size:10px">👤</span>':'')+'</div>'+
+        '<span class="chore-label quad-chore-label" style="'+(isDone?'text-decoration:line-through;color:#bbb;':'')+'">'+c.title+'</span>'+
       '</div>';
     }).join('');
-    return '<div class="home-chore-quad" style="border-top:3px solid '+ch.color+'">'+
-      '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px 6px">'+
+    return '<div class="home-chore-quad" style="border-top:4px solid '+ch.color+'">'+
+      '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px 7px">'+
         avatarHtml+
-        '<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+ch.name+'</div></div>'+
-        '<div style="font-family:\'Fredoka One\',cursive;font-size:13px;color:'+(allDone?'var(--green)':ch.color)+'">'+done+'/'+total+(allDone?' ✅':'')+'</div>'+
+        '<div style="flex:1;min-width:0"><div class="quad-child-name">'+ch.name+'</div></div>'+
+        '<div style="font-family:\'Fredoka One\',cursive;font-size:15px;color:'+(allDone?'var(--green)':ch.color)+'">'+done+'/'+total+(allDone?' ✅':'')+'</div>'+
       '</div>'+
-      '<div style="height:3px;background:#f0f0f0;margin:0 10px 6px"><div style="height:100%;width:'+pct+'%;background:'+(allDone?'var(--green)':ch.color)+';border-radius:2px;transition:width 0.4s"></div></div>'+
+      '<div style="height:4px;background:#f0f0f0;margin:0 12px 8px"><div style="height:100%;width:'+pct+'%;background:'+(allDone?'var(--green)':ch.color)+';border-radius:2px;transition:width 0.4s"></div></div>'+
       '<div>'+choreRows+'</div>'+
     '</div>';
   }).join('');
-  cl.innerHTML=cards?'<div class="home-chores-grid">'+cards+'</div>':'<div class="card"><div class="empty-state"><div class="emoji">✅</div><p>No chores today!</p></div></div>';
+  var nonEmpty=cards.replace(/\s/g,'').length>0;
+  cl.innerHTML=nonEmpty?'<div class="home-chores-grid">'+cards+'</div>':'<div class="card"><div class="empty-state"><div class="emoji">✅</div><p>No chores today!</p></div></div>';
 }
 
 // ════════════════════════════════════════
@@ -2004,122 +2015,73 @@ function renderChores(){
   var ds=choresDayStr;
   var content=document.getElementById('chores-day-content');
   var children=state.members.filter(function(m){return m.isChild;});
+  var ORDER=['m-amelia','m-dutic','m-harry','m-jimmy','m-jj'];
+  children.sort(function(a,b){var ai=ORDER.indexOf(a.id);var bi=ORDER.indexOf(b.id);if(ai<0)ai=99;if(bi<0)bi=99;return ai-bi;});
 
   var html='';
   if(!children.length){
     html='<div class="card"><div class="empty-state"><div class="emoji">👶</div><p>No children set up yet</p></div></div>';
   } else {
-    var withOutstanding=[];
-    var allDoneOrEmpty=[];
-
-    children.forEach(function(ch){
+    var quadCards=children.map(function(ch){
       var chores=state.chores.filter(function(c){return !c.noPoints&&!c.isExtra&&(c.memberIds||[]).indexOf(ch.id)>=0&&c.date===ds;});
       var hasAny=chores.length>0;
       var allDone=hasAny&&chores.every(function(c){return isChoreComplete(c.id,ch.id,ds);});
-      var noChores=!hasAny;
-      if(noChores||allDone){allDoneOrEmpty.push({ch:ch,chores:chores,allDone:allDone,noChores:noChores});}
-      else{withOutstanding.push({ch:ch,chores:chores,allDone:false,noChores:false});}
-    });
-
-    function renderCard(item,dimmed){
-      var ch=item.ch;var chores=item.chores;var allDone=item.allDone;var noChores=item.noChores;
-      var opacity=dimmed?'opacity:0.55;':'';
+      var done=chores.filter(function(c){return isChoreComplete(c.id,ch.id,ds);}).length;
+      var total=chores.length;
+      var pct=total?Math.round((done/total)*100):0;
       var avatarHtml=ch.avatarEmoji?
-        '<div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+ch.avatarEmoji+'</div>':
-        '<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:44px;height:44px;font-size:18px">'+ch.initial+'</div>';
-      var badgeHtml=(allDone?'<span style="background:rgba(255,255,255,0.25);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">All done! ✅</span>':'')
-        +(noChores?'<span style="background:rgba(255,255,255,0.2);border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800">Free day 🎉</span>':'');
+        '<div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'+ch.avatarEmoji+'</div>':
+        '<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:38px;height:38px;font-size:16px">'+ch.initial+'</div>';
+      var badgeHtml=(allDone?'<span style="background:rgba(255,255,255,0.25);border-radius:50px;padding:2px 8px;font-size:11px;font-weight:800">✅ Done!</span>':'')
+        +(!hasAny?'<span style="background:rgba(255,255,255,0.2);border-radius:50px;padding:2px 8px;font-size:11px;font-weight:800">Free 🎉</span>':'');
       var choreRows='';
       if(!chores.length){
-        choreRows='<p style="color:#bbb;text-align:center;padding:10px 0">No chores this day 🎉</p>';
+        choreRows='<p style="color:#bbb;text-align:center;padding:10px 0;font-size:13px">No chores this day 🎉</p>';
       } else {
         for(var ci=0;ci<chores.length;ci++){
-          var c=chores[ci];
-          var comp=getChoreCompletion(c.id,ch.id,ds);
-          var done=!!comp;
-          var byParent=done&&comp.parentDid;
-          var checkStyle='color:'+ch.color+';border-color:'+ch.color;
-          var rowBg='background:'+ch.color+'12';
-          if(byParent){checkStyle='color:#e57373;border-color:#e57373';rowBg='background:#fff0f0';}
+          var c2=chores[ci];
+          var comp=getChoreCompletion(c2.id,ch.id,ds);
+          var isDone=!!comp;var byParent=isDone&&comp.parentDid;
+          var clr=byParent?'#e57373':ch.color;
           choreRows+=
-            '<div class="chore-item '+(done?'done':'')+'" style="'+rowBg+'">'+
-            '<div class="chore-check '+(done?'done':'')+'" style="'+checkStyle+'" onclick="toggleChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\',this)">'+(byParent?'<span style="font-size:11px">👤</span>':'')+'</div>'+
-            '<span class="chore-label" style="flex:1;'+(byParent?'color:#e57373;':'')+'">'+c.title+(byParent?' <span style="font-size:11px;font-weight:700;color:#e57373">(parent did it)</span>':'')+'</span>'+
-            '<span class="chore-pts" style="color:'+(byParent?'#e57373':ch.color)+'">'+(byParent?'-1⭐':(c.noPoints?'📋':'⭐'+(c.points||1)))+'</span>'+
-            '<button onclick="parentDidChore(\''+c.id+'\',\''+ch.id+'\',\''+ds+'\')" title="Parent did it — child loses 1 point" style="background:none;border:none;font-size:14px;cursor:pointer;padding:2px 4px;color:'+(byParent?'#e57373':'#ccc')+';margin-left:2px">👤</button>'+
-            '<button onclick="confirmDeleteChore(\''+c.id+'\')" style="background:none;border:none;font-size:14px;cursor:pointer;padding:2px 4px;color:#ccc;margin-left:0">🗑</button>'+
+            '<div class="chore-item '+(isDone?'done':'')+'" style="background:'+(byParent?'#fff0f0':ch.color+'12')+'">'+
+            '<div class="chore-check '+(isDone?'done':'')+'" style="color:'+clr+';border-color:'+clr+'" onclick="toggleChore(\''+c2.id+'\',\''+ch.id+'\',\''+ds+'\',this)">'+(byParent?'<span style="font-size:10px">👤</span>':'')+'</div>'+
+            '<span class="chore-label quad-chore-label" style="flex:1'+(byParent?';color:#e57373':'')+'">'+c2.title+'</span>'+
+            '<span class="chore-pts" style="color:'+clr+'">'+(byParent?'-1⭐':(c2.noPoints?'📋':'⭐'+(c2.points||1)))+'</span>'+
+            '<button onclick="parentDidChore(\''+c2.id+'\',\''+ch.id+'\',\''+ds+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:2px 3px;color:'+(byParent?'#e57373':'#ccc')+'">👤</button>'+
+            '<button onclick="confirmDeleteChore(\''+c2.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:2px 3px;color:#ccc">🗑</button>'+
             '</div>';
         }
       }
-      return '<div class="pcc" style="'+opacity+'">'+
-        '<div class="pcc-hdr" style="background:'+ch.color+'">'+
-          '<div style="display:flex;align-items:center;gap:10px">'+
-            avatarHtml+'<h3>'+ch.name+'</h3>'+badgeHtml+
-          '</div>'+
-          '<button onclick="openChoreModalGated(\''+ch.id+'\')" style="background:rgba(255,255,255,0.25);border:none;border-radius:50%;width:34px;height:34px;font-size:20px;cursor:pointer;color:#fff">+</button>'+
+      return '<div class="home-chore-quad" style="border-top:4px solid '+ch.color+'">'+
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px 6px;background:'+ch.color+'">'+
+          avatarHtml+
+          '<div style="flex:1;min-width:0"><div class="quad-child-name" style="color:#fff">'+ch.name+'</div></div>'+
+          badgeHtml+
+          (total?'<span style="font-family:\'Fredoka One\',cursive;font-size:14px;color:rgba(255,255,255,0.9)">'+done+'/'+total+'</span>':'')+
+          '<button onclick="openChoreModalGated(\''+ch.id+'\')" style="background:rgba(255,255,255,0.25);border:none;border-radius:50%;width:30px;height:30px;font-size:18px;cursor:pointer;color:#fff;margin-left:4px;flex-shrink:0">+</button>'+
         '</div>'+
-        '<div class="pcc-body">'+choreRows+'</div>'+
+        (total?'<div style="height:4px;background:rgba(0,0,0,0.1)"><div style="height:100%;width:'+pct+'%;background:rgba(255,255,255,0.6);border-radius:2px;transition:width 0.4s"></div></div>':'')+
+        '<div class="pcc-body" style="padding:6px 8px">'+choreRows+'</div>'+
       '</div>';
-    }
-
-    for(var wi=0;wi<withOutstanding.length;wi++){html+=renderCard(withOutstanding[wi],false);}
-    if(allDoneOrEmpty.length){
-      if(withOutstanding.length){
-        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 16px 4px">'+
-          '<div style="flex:1;height:1px;background:#e0e0e0"></div>'+
-          '<span style="font-size:11px;font-weight:800;color:#bbb;white-space:nowrap">COMPLETED / NO CHORES</span>'+
-          '<div style="flex:1;height:1px;background:#e0e0e0"></div></div>';
-      }
-      for(var ai=0;ai<allDoneOrEmpty.length;ai++){html+=renderCard(allDoneOrEmpty[ai],true);}
-    }
+    }).join('');
+    html='<div class="home-chores-grid">'+quadCards+'</div>';
   }
 
-  // ── EXTRA JOBS SECTION (always rendered regardless of children) ──
   var extraChores=state.chores.filter(function(c){return c.isExtra&&c.date===ds;});
   var allChildren=state.members.filter(function(m){return m.isChild;});
   if(extraChores.length){
-    var extraHtml='<div class="extra-section">'+
-      '<div class="extra-section-title">'+
-        '💫 Extra Jobs'+
-        '<span style="font-size:12px;font-family:\'Nunito\';font-weight:700;color:#b8860b;margin-left:6px;opacity:0.8">Pick one up for bonus points!</span>'+
-        '<button onclick="openExtraChoreGated()" style="margin-left:auto;background:rgba(249,168,37,0.15);border:none;border-radius:50%;width:28px;height:28px;font-size:18px;cursor:pointer;color:#F9A825;line-height:1">+</button>'+
-      '</div>';
+    var extraHtml='<div class="extra-section"><div class="extra-section-title">💫 Extra Jobs<span style="font-size:12px;font-family:\'Nunito\';font-weight:700;color:#b8860b;margin-left:6px;opacity:0.8">Pick one up for bonus points!</span><button onclick="openExtraChoreGated()" style="margin-left:auto;background:rgba(249,168,37,0.15);border:none;border-radius:50%;width:28px;height:28px;font-size:18px;cursor:pointer;color:#F9A825;line-height:1">+</button></div>';
     for(var ei=0;ei<extraChores.length;ei++){
       var ec=extraChores[ei];
       var isClaimed=ec.claimedBy;
       var claimer=isClaimed?allChildren.find(function(k){return k.id===ec.claimedBy;}):null;
       if(isClaimed){
-        // Show as taken — just one row, no buttons for others
-        extraHtml+='<div class="extra-chore-row" style="opacity:0.5">'+
-          '<div style="flex:1">'+
-            '<div class="extra-chore-title" style="text-decoration:line-through">'+ec.title+'</div>'+
-            '<div style="font-size:12px;color:#F9A825;font-weight:700;margin-top:4px">✅ Claimed by '+(claimer?claimer.name:'someone')+'</div>'+
-            '<button onclick="claimExtra(\''+ec.id+'\',\''+ec.claimedBy+'\',\''+ds+'\',this)" style="background:none;border:none;font-size:11px;color:#aaa;cursor:pointer;padding:2px 0;font-family:\'Nunito\';font-weight:700">↩ Undo</button>'+
-          '</div>'+
-          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0">'+
-            '<span class="extra-chore-pts">⭐'+(ec.points||1)+'</span>'+
-            '<button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button>'+
-          '</div>'+
-        '</div>';
+        extraHtml+='<div class="extra-chore-row" style="opacity:0.5"><div style="flex:1"><div class="extra-chore-title" style="text-decoration:line-through">'+ec.title+'</div><div style="font-size:12px;color:#F9A825;font-weight:700;margin-top:4px">✅ Claimed by '+(claimer?claimer.name:'someone')+'</div><button onclick="claimExtra(\''+ec.id+'\',\''+ec.claimedBy+'\',\''+ds+'\',this)" style="background:none;border:none;font-size:11px;color:#aaa;cursor:pointer;padding:2px 0;font-family:\'Nunito\';font-weight:700">↩ Undo</button></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0"><span class="extra-chore-pts">⭐'+(ec.points||1)+'</span><button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button></div></div>';
       } else {
-        // Available — show a button per child
         var kidBtns='';
-        for(var ki=0;ki<allChildren.length;ki++){
-          var kid=allChildren[ki];
-          kidBtns+='<button class="extra-claim-btn" onclick="claimExtra(\''+ec.id+'\',\''+kid.id+'\',\''+ds+'\',this)">'+
-            (kid.avatarEmoji||kid.initial)+' '+kid.name+
-          '</button>';
-        }
-        extraHtml+='<div class="extra-chore-row">'+
-          '<div style="flex:1">'+
-            '<div class="extra-chore-title">'+ec.title+'</div>'+
-            '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div>'+
-          '</div>'+
-          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0">'+
-            '<span class="extra-chore-pts">⭐'+(ec.points||1)+'</span>'+
-            '<button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button>'+
-          '</div>'+
-        '</div>';
+        for(var ki=0;ki<allChildren.length;ki++){var kid=allChildren[ki];kidBtns+='<button class="extra-claim-btn" onclick="claimExtra(\''+ec.id+'\',\''+kid.id+'\',\''+ds+'\',this)">'+(kid.avatarEmoji||kid.initial)+' '+kid.name+'</button>';}
+        extraHtml+='<div class="extra-chore-row"><div style="flex:1"><div class="extra-chore-title">'+ec.title+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0"><span class="extra-chore-pts">⭐'+(ec.points||1)+'</span><button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button></div></div>';
       }
     }
     extraHtml+='</div>';
@@ -2128,6 +2090,7 @@ function renderChores(){
 
   content.innerHTML=html;
 }
+
 function claimExtra(cId,mId,ds,el){
   var done=isChoreComplete(cId,mId,ds);
   var chore=state.chores.find(function(c){return c.id===cId;});
