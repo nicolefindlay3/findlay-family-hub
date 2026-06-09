@@ -904,7 +904,16 @@ create policy "public_access" on app_state
     <div id="chore-extra-note" style="display:none;background:#FFF8E7;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;color:#F9A825;margin-bottom:4px">
       🌟 Any child can claim this and earn the points — no one is pre-assigned.
     </div>
-    <div class="fg"><label class="fl">Date</label><input class="fi" type="date" id="chore-date"></div>
+    <div class="fg" id="chore-date-single-row"><label class="fl">Date</label><input class="fi" type="date" id="chore-date"></div>
+    <div class="fg" id="chore-date-range-row" style="display:none">
+      <label class="fl">Available from → until</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input class="fi" type="date" id="chore-date-from" style="flex:1">
+        <span style="font-weight:800;color:#aaa">→</span>
+        <input class="fi" type="date" id="chore-date-to" style="flex:1">
+      </div>
+      <div style="font-size:12px;color:#aaa;font-weight:600;margin-top:4px">Stays on the list every day until someone does it</div>
+    </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveChore()">Save</button>
       <button class="btn btn-outline" onclick="closeModal('modal-chore')">Cancel</button>
@@ -2071,7 +2080,12 @@ function renderChores(){
     html='<div class="home-chores-grid">'+quadCards+'</div>';
   }
 
-  var extraChores=state.chores.filter(function(c){return c.isExtra&&c.date===ds;});
+  var extraChores=state.chores.filter(function(c){
+    if(!c.isExtra)return false;
+    // Support both old single-date extras and new date-range extras
+    if(c.dateFrom&&c.dateTo)return ds>=c.dateFrom&&ds<=c.dateTo;
+    return c.date===ds;
+  });
   var allChildren=state.members.filter(function(m){return m.isChild;});
   if(extraChores.length){
     var extraHtml='<div class="extra-section"><div class="extra-section-title">💫 Extra Jobs<span style="font-size:12px;font-family:\'Nunito\';font-weight:700;color:#b8860b;margin-left:6px;opacity:0.8">Pick one up for bonus points!</span><button onclick="openExtraChoreGated()" style="margin-left:auto;background:rgba(249,168,37,0.15);border:none;border-radius:50%;width:28px;height:28px;font-size:18px;cursor:pointer;color:#F9A825;line-height:1">+</button></div>';
@@ -2084,7 +2098,7 @@ function renderChores(){
       } else {
         var kidBtns='';
         for(var ki=0;ki<allChildren.length;ki++){var kid=allChildren[ki];kidBtns+='<button class="extra-claim-btn" onclick="claimExtra(\''+ec.id+'\',\''+kid.id+'\',\''+ds+'\',this)">'+(kid.avatarEmoji||kid.initial)+' '+kid.name+'</button>';}
-        extraHtml+='<div class="extra-chore-row"><div style="flex:1"><div class="extra-chore-title">'+ec.title+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0"><span class="extra-chore-pts">⭐'+(ec.points||1)+'</span><button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button></div></div>';
+        extraHtml+='<div class="extra-chore-row"><div style="flex:1"><div class="extra-chore-title">'+ec.title+'</div>'+(ec.dateFrom&&ec.dateTo?'<div style="font-size:11px;color:#F9A825;font-weight:600;margin-top:3px">'+fmtDate(ec.dateFrom)+' → '+fmtDate(ec.dateTo)+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+kidBtns+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0"><span class="extra-chore-pts">⭐'+(ec.points||1)+'</span><button onclick="confirmDeleteChore(\''+ec.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:0">🗑</button></div></div>';
       }
     }
     extraHtml+='</div>';
@@ -2203,6 +2217,8 @@ function toggleExtraChoreUI(){
   document.getElementById('extra-knob').style.left=isExtra?'23px':'3px';
   document.getElementById('chore-assign-row').style.display=isExtra?'none':'block';
   document.getElementById('chore-extra-note').style.display=isExtra?'block':'none';
+  document.getElementById('chore-date-single-row').style.display=isExtra?'none':'block';
+  document.getElementById('chore-date-range-row').style.display=isExtra?'block':'none';
   document.getElementById('chore-modal-title').textContent=isExtra?'💫 Extra Chore':(document.getElementById('chore-edit-id').value?'✏️ Edit Chore':'🧹 New Chore');
 }
 function openChoreModal(existingId,presetMemberId){
@@ -2231,7 +2247,13 @@ function openChoreModal(existingId,presetMemberId){
   document.getElementById('chore-extra-note').style.display=isExtra?'block':'none';
   document.getElementById('chore-assign-row').style.opacity='1';
   document.getElementById('chore-assign-row').style.pointerEvents='auto';
-  document.getElementById('chore-date').value=c&&c.date||choresDayStr;
+  document.getElementById('chore-date-single-row').style.display=isExtra?'none':'block';
+  document.getElementById('chore-date-range-row').style.display=isExtra?'block':'none';
+  document.getElementById('chore-date').value=(!isExtra&&c&&c.date)||choresDayStr;
+  var baseFrom=(isExtra&&c&&c.dateFrom)||choresDayStr;
+  document.getElementById('chore-date-from').value=baseFrom;
+  var dTo=new Date(parseDate(baseFrom));dTo.setDate(dTo.getDate()+6);
+  document.getElementById('chore-date-to').value=(isExtra&&c&&c.dateTo)||dStr(dTo);
   buildMSelector('chore-members',c&&!isExtra?c.memberIds||[]:(presetMemberId?[presetMemberId]:[]),true);
   openModal('modal-chore');
 }
@@ -2240,11 +2262,20 @@ function saveChore(){
   var isExtra=document.getElementById('chore-isextra').checked;
   var memberIds=isExtra?[]:getSelMembers('chore-members');
   if(!isExtra&&!memberIds.length){showToast('Assign to someone');return;}
-  var date=document.getElementById('chore-date').value;if(!date){showToast('Pick a date');return;}
+  var noPoints=document.getElementById('chore-nopoints').checked;
   var editId=document.getElementById('chore-edit-id').value;
   var m=memberIds.length?state.members.find(function(x){return x.id===memberIds[0];}):null;
-  var noPoints=document.getElementById('chore-nopoints').checked;
-  var chore={id:editId||uid(),title:title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints:noPoints,isExtra:isExtra,memberIds:memberIds,date:date,color:m&&m.color||'#F9A825'};
+  var chore;
+  if(isExtra){
+    var dateFrom=document.getElementById('chore-date-from').value;
+    var dateTo=document.getElementById('chore-date-to').value;
+    if(!dateFrom||!dateTo){showToast('Pick a date range');return;}
+    if(dateTo<dateFrom){showToast('End date must be after start');return;}
+    chore={id:editId||uid(),title:title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints:noPoints,isExtra:true,memberIds:[],dateFrom:dateFrom,dateTo:dateTo,date:'',color:'#F9A825'};
+  } else {
+    var date=document.getElementById('chore-date').value;if(!date){showToast('Pick a date');return;}
+    chore={id:editId||uid(),title:title,points:noPoints?0:parseInt(document.getElementById('chore-pts').value)||1,noPoints:noPoints,isExtra:false,memberIds:memberIds,date:date,color:m&&m.color||'#888'};
+  }
   if(editId){var i=state.chores.findIndex(function(c){return c.id===editId;});if(i>=0)state.chores[i]=chore;}else{state.chores.push(chore);}
   save();closeModal('modal-chore');renderChores();renderHome();showToast(isExtra?'Extra chore added 💫':(editId?'Chore updated ✅':'Chore added 🧹'));
 }
@@ -3088,7 +3119,7 @@ function openKidModal(mId){
   const badges=getBadges(mId);
   const xpPct=next?Math.round(((bal-lv.min)/(next.min-lv.min))*100):100;
   const todayChores=state.chores.filter(c=>(c.memberIds||[]).includes(mId)&&c.date===today&&!c.isExtra);
-  const extraAvail=state.chores.filter(c=>c.isExtra&&c.date===today);
+  const extraAvail=state.chores.filter(c=>c.isExtra&&(c.dateFrom&&c.dateTo?today>=c.dateFrom&&today<=c.dateTo:c.date===today));
   const ptChores=todayChores.filter(c=>!c.noPoints);
   const dutyChores=todayChores.filter(c=>c.noPoints);
   const doneCount=todayChores.filter(c=>isChoreComplete(c.id,mId,today)).length;
