@@ -1022,6 +1022,17 @@ create policy "public_access" on app_state
   </div>
 </div>
 
+<!-- BLOCKED MODAL -->
+<div class="modal-overlay" id="modal-blocked">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="modal-handle"></div>
+    <div style="font-size:52px;margin-bottom:8px" id="blocked-icon">🚫</div>
+    <div class="modal-title" id="blocked-title" style="font-size:20px;margin-bottom:8px"></div>
+    <div id="blocked-body" style="font-size:14px;font-weight:600;color:#666;line-height:1.6;white-space:pre-line;margin-bottom:20px"></div>
+    <button class="btn btn-primary" onclick="closeModal('modal-blocked')" style="width:100%;justify-content:center;font-size:16px">Got it 👍</button>
+  </div>
+</div>
+
 <!-- ALARM MODAL -->
 <div class="modal-overlay" id="modal-alarm">
   <div class="modal">
@@ -2108,10 +2119,32 @@ function renderChores(){
   content.innerHTML=html;
 }
 
+function showBlockedModal(title,body,color){
+  document.getElementById('blocked-title').textContent=title;
+  document.getElementById('blocked-title').style.color=color||'var(--red)';
+  document.getElementById('blocked-body').textContent=body;
+  openModal('modal-blocked');
+}
+
 function claimExtra(cId,mId,ds,el){
   var done=isChoreComplete(cId,mId,ds);
   var chore=state.chores.find(function(c){return c.id===cId;});
   if(!chore)return;
+  if(!done){
+    // Check daily jobs are all done first
+    var dailyChores=state.chores.filter(function(c){return !c.isExtra&&!c.noPoints&&(c.memberIds||[]).indexOf(mId)>=0&&c.date===ds;});
+    var allDone=dailyChores.every(function(c){return isChoreComplete(c.id,mId,ds);});
+    if(dailyChores.length&&!allDone){
+      var member=state.members.find(function(m){return m.id===mId;});
+      var remaining=dailyChores.filter(function(c){return !isChoreComplete(c.id,mId,ds);});
+      showBlockedModal(
+        (member?member.name:'You')+' still '+( remaining.length===1?'has':'have')+' jobs to do!',
+        'Finish your daily job'+(remaining.length>1?'s':'')+' first before grabbing extra:\n\n'+ remaining.map(function(c){return '• '+c.title;}).join('\n'),
+        member?member.color:null
+      );
+      return;
+    }
+  }
   if(done){
     // Undo — clear claim
     state.choreCompletions=state.choreCompletions.filter(function(c){return!(c.choreId===cId&&c.memberId===mId&&c.date===ds);});
