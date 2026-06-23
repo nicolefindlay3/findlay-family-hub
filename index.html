@@ -773,6 +773,11 @@ create policy "public_access" on app_state
   </div>
 
   <div class="tab-panel" id="tab-routine">
+    <div class="sec-hdr">
+      <div class="sec-title">🌅 Routine</div>
+      <button class="btn btn-ghost btn-sm" onclick="openRoutineCsvGated()">📥 Import CSV</button>
+    </div>
+    <input type="file" id="routine-csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="handleRoutineCSVUpload(this)">
     <div id="routine-content"></div>
   </div>
 
@@ -836,6 +841,48 @@ create policy "public_access" on app_state
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="modal-routine-csv">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📥 Import Routine Tasks from CSV</div>
+    <div id="routine-csv-summary" style="font-size:13px;font-weight:700;color:#666;margin-bottom:12px"></div>
+
+    <div id="routine-csv-warnings" style="display:none;background:#FFF3CD;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:700;color:#856404"></div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#f9f9f9;border-radius:12px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;cursor:pointer">
+        <input type="checkbox" id="routine-csv-replace" style="width:16px;height:16px">
+        Replace all existing routine tasks (instead of adding)
+      </label>
+    </div>
+
+    <div style="overflow-x:auto;max-height:340px;overflow-y:auto;border-radius:12px;border:1px solid var(--border)">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f5f5f5;position:sticky;top:0">
+            <th style="padding:9px 12px;text-align:left;font-weight:800">Task</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:800">Who</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:800">Period</th>
+            <th style="padding:9px 12px;text-align:center;font-weight:800">Status</th>
+          </tr>
+        </thead>
+        <tbody id="routine-csv-preview-body"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:8px;font-size:11px;font-weight:700;color:#aaa">
+      CSV format: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px">task, who, period</code>
+      &nbsp;— <b>period</b> is <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">morning</code> or <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">afternoon</code>
+      &nbsp;·&nbsp; "who" matches Harry or Jimmy by name
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="confirmRoutineCSVImport()">✅ Import</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-routine-csv');document.getElementById('routine-csv-upload-input').value=''">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="rem-banner"><span id="rem-banner-text">⏰ Reminder</span><span style="margin-left:auto;font-size:20px;cursor:pointer" onclick="document.getElementById('rem-banner').classList.remove('show')">✕</span></div>
 
 <!-- KID DETAIL MODAL -->
@@ -3727,7 +3774,9 @@ var ROUTINE_KIDS=['m-harry','m-jimmy'];
 var routineFiredToday={};
 
 function getRoutineTasks(memberId,period){
-  return (state.routineTasks||[]).filter(function(t){return t.memberId===memberId&&t.period===period;});
+  var tasks=(state.routineTasks||[]).filter(function(t){return t.memberId===memberId&&t.period===period;});
+  tasks.sort(function(a,b){return(a.order||0)-(b.order||0);});
+  return tasks;
 }
 function isRoutineTaskDone(taskId,memberId,date){
   return (state.routineCompletions||[]).some(function(rc){return rc.taskId===taskId&&rc.memberId===memberId&&rc.date===date;});
@@ -3775,7 +3824,9 @@ function saveRoutineTask(){
     var t=state.routineTasks.find(function(x){return x.id===editId;});
     if(t)t.title=title;
   } else {
-    state.routineTasks.push({id:uid(),memberId:memberId,period:period,title:title});
+    var siblings=state.routineTasks.filter(function(x){return x.memberId===memberId&&x.period===period;});
+    var maxOrder=siblings.reduce(function(max,s){return Math.max(max,s.order||0);},0);
+    state.routineTasks.push({id:uid(),memberId:memberId,period:period,title:title,order:maxOrder+1});
   }
   save();closeModal('modal-routine-task');renderRoutine();showToast(editId?'Task updated':'Task added ✅');
 }
@@ -3815,6 +3866,20 @@ function saveRoutineLeaveTime(){
   save();closeModal('modal-routine-leave');renderRoutine();showToast('Reminder saved ⏰');
 }
 
+function moveRoutineTaskGated(memberId,period,taskId,dir){openWithPin(function(){moveRoutineTask(memberId,period,taskId,dir);});}
+function moveRoutineTask(memberId,period,taskId,dir){
+  var tasks=getRoutineTasks(memberId,period); // already sorted by order
+  var idx=tasks.findIndex(function(t){return t.id===taskId;});
+  if(idx<0)return;
+  var swapIdx=idx+dir;
+  if(swapIdx<0||swapIdx>=tasks.length)return;
+  // Ensure every task has an order value first
+  tasks.forEach(function(t,i){if(t.order===undefined||t.order===null)t.order=i+1;});
+  var a=tasks[idx],b=tasks[swapIdx];
+  var tmp=a.order;a.order=b.order;b.order=tmp;
+  save();renderRoutine();
+}
+
 function routineSection(ch,period,today){
   var tasks=getRoutineTasks(ch.id,period);
   var done=tasks.filter(function(t){return isRoutineTaskDone(t.id,ch.id,today);}).length;
@@ -3829,9 +3894,16 @@ function routineSection(ch,period,today){
     '<span class="routine-leave-pill" onclick="openRoutineLeaveModalGated(\''+ch.id+'\',\''+period+'\')">⏰ Leave by '+fmtTime(cfg.time+':00')+'</span>':
     '<span class="routine-leave-pill" onclick="openRoutineLeaveModalGated(\''+ch.id+'\',\''+period+'\')" style="opacity:0.5">⏰ Set leave time</span>';
 
-  var taskRows=tasks.length?tasks.map(function(t){
+  var taskRows=tasks.length?tasks.map(function(t,idx){
     var isDone=isRoutineTaskDone(t.id,ch.id,today);
+    var upDisabled=idx===0;
+    var downDisabled=idx===tasks.length-1;
     return '<div class="routine-task-item">'+
+      '<div style="display:flex;flex-direction:column;gap:0;flex-shrink:0">'+
+        '<button onclick="moveRoutineTaskGated(\''+ch.id+'\',\''+period+'\',\''+t.id+'\',-1)" '+(upDisabled?'disabled':'')+' style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 4px;color:'+(upDisabled?'#eee':'#bbb')+';line-height:1">▲</button>'+
+        '<button onclick="moveRoutineTaskGated(\''+ch.id+'\',\''+period+'\',\''+t.id+'\',1)" '+(downDisabled?'disabled':'')+' style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 4px;color:'+(downDisabled?'#eee':'#bbb')+';line-height:1">▼</button>'+
+      '</div>'+
+      '<div style="background:'+ch.color+';color:#fff;border-radius:50%;width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">'+(idx+1)+'</div>'+
       '<div class="routine-check '+(isDone?'done':'')+'" onclick="toggleRoutineTask(\''+t.id+'\',\''+ch.id+'\',\''+today+'\',this)"></div>'+
       '<div class="routine-task-label '+(isDone?'done':'')+'">'+t.title+'</div>'+
       '<button onclick="event.stopPropagation();openRoutineTaskModalGated2(\''+ch.id+'\',\''+period+'\',\''+t.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#ccc;padding:4px">✏️</button>'+
@@ -3851,6 +3923,108 @@ function routineSection(ch,period,today){
 }
 
 function openRoutineTaskModalGated2(memberId,period,taskId){openWithPin(function(){openRoutineTaskModal(memberId,period,taskId);});}
+
+function openRoutineCsvGated(){openWithPin(function(){document.getElementById('routine-csv-upload-input').click();});}
+
+function handleRoutineCSVUpload(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){parseRoutineCSVAndPreview(e.target.result);};
+  reader.readAsText(file);
+}
+
+var routineCsvParsedRows=[];
+
+function parseRoutineCSVAndPreview(text){
+  var lines=text.split(/\r?\n/).map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+  if(!lines.length){showToast('Empty CSV file');document.getElementById('routine-csv-upload-input').value='';return;}
+
+  var startRow=0;
+  var firstLower=lines[0].toLowerCase();
+  if(firstLower.indexOf('task')>=0||firstLower.indexOf('who')>=0||firstLower.indexOf('period')>=0||firstLower.indexOf('name')>=0){startRow=1;}
+
+  routineCsvParsedRows=[];
+  var warnings=[];
+
+  for(var i=startRow;i<lines.length;i++){
+    var fields=parseCSVLine(lines[i]);
+    if(fields.length<1||!fields[0])continue;
+    var rawTask=fields[0]||'';
+    var rawWho=fields[1]||'';
+    var rawPeriod=(fields[2]||'').trim().toLowerCase();
+
+    var title=rawTask.trim();
+    if(!title)continue;
+
+    var period=null;
+    if(rawPeriod.indexOf('morn')>=0)period='morning';
+    else if(rawPeriod.indexOf('after')>=0||rawPeriod.indexOf('arvo')>=0)period='afternoon';
+
+    var member=resolveMember(rawWho);
+    var isRoutineKid=member&&ROUTINE_KIDS.indexOf(member.id)>=0;
+
+    var status='ok';
+    if(!period){status='warn';warnings.push('Row '+(i+1)+': "'+rawPeriod+'" — could not work out morning/afternoon, defaulting to morning');period='morning';}
+    if(!member){status='warn';warnings.push('Row '+(i+1)+': "'+rawWho+'" — no matching child found, row skipped');}
+    else if(!isRoutineKid){status='warn';warnings.push('Row '+(i+1)+': "'+member.name+'" is not on the Routine tab, row skipped');}
+
+    routineCsvParsedRows.push({
+      title:title,member:(isRoutineKid?member:null),rawWho:rawWho,period:period,status:status,rowNum:i+1
+    });
+  }
+
+  if(!routineCsvParsedRows.length){showToast('No valid rows found in CSV');document.getElementById('routine-csv-upload-input').value='';return;}
+
+  var ok=routineCsvParsedRows.filter(function(r){return r.status==='ok';}).length;
+  var warn=routineCsvParsedRows.filter(function(r){return r.status==='warn';}).length;
+  document.getElementById('routine-csv-summary').textContent='Found '+routineCsvParsedRows.length+' task'+(routineCsvParsedRows.length!==1?'s':'')+' · '+ok+' ready · '+warn+' with warnings';
+
+  var warnEl=document.getElementById('routine-csv-warnings');
+  if(warnings.length){warnEl.style.display='block';warnEl.innerHTML='⚠️ '+warnings.join('<br>⚠️ ');}
+  else{warnEl.style.display='none';}
+
+  document.getElementById('routine-csv-preview-body').innerHTML=routineCsvParsedRows.map(function(r){
+    var memberName=r.member?'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:'+r.member.color+';display:inline-block"></span>'+r.member.name+'</span>':'<span style="color:#e57373">'+(r.rawWho||'—')+'</span>';
+    var periodLabel=r.period==='morning'?'🌅 Morning':'🌆 Afternoon';
+    var statusBadge=r.status==='ok'?'<span style="color:#2e7d32;font-size:16px">✓</span>':'<span style="color:#e65100;font-size:16px">⚠</span>';
+    return '<tr style="border-bottom:1px solid #f5f5f5">'+
+      '<td style="padding:9px 12px;font-weight:700">'+r.title+'</td>'+
+      '<td style="padding:9px 12px">'+memberName+'</td>'+
+      '<td style="padding:9px 12px">'+periodLabel+'</td>'+
+      '<td style="padding:9px 12px;text-align:center">'+statusBadge+'</td>'+
+    '</tr>';
+  }).join('');
+
+  openModal('modal-routine-csv');
+}
+
+function confirmRoutineCSVImport(){
+  if(!routineCsvParsedRows.length)return;
+  var replace=document.getElementById('routine-csv-replace').checked;
+  if(replace)state.routineTasks=[];
+  if(!state.routineTasks)state.routineTasks=[];
+
+  var added=0;
+  var orderCounters={};
+  routineCsvParsedRows.forEach(function(r){
+    if(!r.member)return; // skip rows with no valid routine kid
+    var key=r.member.id+'_'+r.period;
+    if(orderCounters[key]===undefined){
+      var existing=state.routineTasks.filter(function(x){return x.memberId===r.member.id&&x.period===r.period;});
+      orderCounters[key]=existing.reduce(function(max,s){return Math.max(max,s.order||0);},0);
+    }
+    orderCounters[key]++;
+    state.routineTasks.push({id:uid(),memberId:r.member.id,period:r.period,title:r.title,order:orderCounters[key]});
+    added++;
+  });
+
+  save();
+  closeModal('modal-routine-csv');
+  document.getElementById('routine-csv-upload-input').value='';
+  routineCsvParsedRows=[];
+  renderRoutine();
+  showToast('Imported '+added+' task'+(added!==1?'s':'')+'! 🌅');
+}
 
 function renderRoutine(){
   var container=document.getElementById('routine-content');
