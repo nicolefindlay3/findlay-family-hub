@@ -916,7 +916,7 @@ create policy "public_access" on app_state
     <div style="margin-top:8px;font-size:11px;font-weight:700;color:#aaa">
       CSV format: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px">task, who, period</code>
       &nbsp;— <b>period</b> is <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">morning</code> or <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">afternoon</code>
-      &nbsp;·&nbsp; "who" matches Harry or Jimmy by name
+      &nbsp;·&nbsp; "who" matches any child by name
     </div>
 
     <div style="display:flex;gap:10px;margin-top:16px">
@@ -4237,15 +4237,15 @@ function parseRoutineCSVAndPreview(text){
     else if(rawPeriod.indexOf('after')>=0||rawPeriod.indexOf('arvo')>=0)period='afternoon';
 
     var member=resolveMember(rawWho);
-    var isRoutineKid=member&&ROUTINE_KIDS.indexOf(member.id)>=0;
+    var isValidChild=member&&member.isChild;
 
     var status='ok';
     if(!period){status='warn';warnings.push('Row '+(i+1)+': "'+rawPeriod+'" — could not work out morning/afternoon, defaulting to morning');period='morning';}
     if(!member){status='warn';warnings.push('Row '+(i+1)+': "'+rawWho+'" — no matching child found, row skipped');}
-    else if(!isRoutineKid){status='warn';warnings.push('Row '+(i+1)+': "'+member.name+'" is not on the Routine tab, row skipped');}
+    else if(!isValidChild){status='warn';warnings.push('Row '+(i+1)+': "'+member.name+'" is not set up as a child, row skipped');}
 
     routineCsvParsedRows.push({
-      title:title,member:(isRoutineKid?member:null),rawWho:rawWho,period:period,status:status,rowNum:i+1
+      title:title,member:(isValidChild?member:null),rawWho:rawWho,period:period,status:status,rowNum:i+1
     });
   }
 
@@ -4305,9 +4305,9 @@ function confirmRoutineCSVImport(){
 function renderRoutine(){
   var container=document.getElementById('routine-content');
   var today=todayStr();
-  var kids=state.members.filter(function(m){return ROUTINE_KIDS.indexOf(m.id)>=0;});
+  var kids=state.members.filter(function(m){return m.isChild;});
   if(!kids.length){
-    container.innerHTML='<div class="card"><div class="empty-state"><div class="emoji">🌅</div><p>No routine kids set up</p></div></div>';
+    container.innerHTML='<div class="card"><div class="empty-state"><div class="emoji">🌅</div><p>No children set up yet</p></div></div>';
     return;
   }
   container.innerHTML='<div class="routine-grid">'+kids.map(function(ch){
