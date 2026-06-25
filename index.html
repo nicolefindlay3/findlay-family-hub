@@ -3970,6 +3970,7 @@ function renderKidView(){
       '<div class="kv-section-title" style="color:'+ch.color+'">🧹 Today\'s Jobs ('+doneDaily+'/'+dailyChores.length+')</div>'+
       choreRows+
     '</div>'+
+    kvExtraJobsSection(ch,today)+
     '<div class="kv-section">'+
       '<div class="kv-section-title" style="color:'+ch.color+'">📅 Upcoming</div>'+
       eventsHtml+
@@ -3977,6 +3978,40 @@ function renderKidView(){
     kvRoutineSection(ch,'morning',today)+
     kvRoutineSection(ch,'afternoon',today)+
     kvAlarmsSection(ch);
+}
+
+function kvExtraJobsSection(ch,today){
+  var extraChores=state.chores.filter(function(c){
+    if(!c.isExtra)return false;
+    if(c.dateFrom&&c.dateTo)return today>=c.dateFrom&&today<=c.dateTo;
+    return c.date===today;
+  });
+  if(!extraChores.length)return'';
+  var allChildren=state.members.filter(function(m){return m.isChild;});
+  var rows=extraChores.map(function(ec){
+    var isClaimed=ec.claimedBy;
+    if(isClaimed){
+      var claimer=allChildren.find(function(k){return k.id===ec.claimedBy;});
+      var byMe=ec.claimedBy===ch.id;
+      return '<div class="extra-chore-row" style="opacity:'+(byMe?'1':'0.5')+'">'+
+        '<div style="flex:1"><div class="extra-chore-title" style="text-decoration:'+(byMe?'none':'line-through')+'">'+ec.title+'</div>'+
+        '<div style="font-size:13px;color:#F9A825;font-weight:700;margin-top:4px">'+(byMe?'✅ You claimed this!':'✅ Claimed by '+(claimer?claimer.name:'someone'))+'</div>'+
+        (byMe?'<button onclick="claimExtra(\''+ec.id+'\',\''+ch.id+'\',\''+today+'\',this);setTimeout(renderKidView,350)" style="background:none;border:none;font-size:12px;color:#aaa;cursor:pointer;padding:3px 0;font-weight:700">↩ Undo</button>':'')+
+        '</div>'+
+        '<span class="extra-chore-pts" style="font-size:16px">⭐'+(ec.points||1)+'</span>'+
+      '</div>';
+    } else {
+      return '<div class="extra-chore-row">'+
+        '<div style="flex:1"><div class="extra-chore-title" style="font-size:16px">'+ec.title+'</div></div>'+
+        '<span class="extra-chore-pts" style="font-size:16px;margin-right:10px">⭐'+(ec.points||1)+'</span>'+
+        '<button class="extra-claim-btn" style="font-size:14px;padding:8px 18px" onclick="claimExtra(\''+ec.id+'\',\''+ch.id+'\',\''+today+'\',this);setTimeout(renderKidView,350)">I\'ll do it!</button>'+
+      '</div>';
+    }
+  }).join('');
+  return '<div class="extra-section" style="margin:0 0 14px">'+
+    '<div class="extra-section-title">💫 Extra Jobs<span style="font-size:13px;font-family:\'Nunito\';font-weight:700;color:#b8860b;margin-left:6px;opacity:0.8">Finish your daily jobs first!</span></div>'+
+    rows+
+  '</div>';
 }
 
 function kvAlarmsSection(ch){
