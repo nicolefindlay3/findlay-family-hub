@@ -3966,21 +3966,16 @@ function renderKidView(){
     '</div>';
   }).join(''):'<p style="color:#ccc;text-align:center;padding:14px 0">No jobs today — enjoy! 🎉</p>';
 
-  // Upcoming events — no header shown, blank if none
-  var todayEvs=getEventsForDate(today).filter(function(ev){return(ev.memberIds||[]).indexOf(ch.id)>=0||(ev.memberIds||[]).length===0;}).sort(function(a,b){return(a.startTime||'').localeCompare(b.startTime||'');});
-  var tomEvs=getEventsForDate(tomorrow).filter(function(ev){return(ev.memberIds||[]).indexOf(ch.id)>=0||(ev.memberIds||[]).length===0;}).sort(function(a,b){return(a.startTime||'').localeCompare(b.startTime||'');});
+  // Upcoming events — next 7 days, blank if none
   var eventsHtml='';
-  if(todayEvs.length){
-    eventsHtml+='<div class="kv-event-day">Today</div>';
-    eventsHtml+=todayEvs.map(function(ev){
-      var ms=(ev.memberIds||[]).map(function(id){return state.members.find(function(m){return m.id===id;});}).filter(Boolean);
-      var color=ms[0]&&ms[0].color||ch.color;
-      return kvEventRow(ev,color);
-    }).join('');
-  }
-  if(tomEvs.length){
-    eventsHtml+='<div class="kv-event-day">Tomorrow</div>';
-    eventsHtml+=tomEvs.map(function(ev){
+  for(var di=0;di<7;di++){
+    var dayD=new Date();dayD.setDate(dayD.getDate()+di);
+    var dayStr=dStr(dayD);
+    var dayEvs=getEventsForDate(dayStr).filter(function(ev){return(ev.memberIds||[]).indexOf(ch.id)>=0||(ev.memberIds||[]).length===0;}).sort(function(a,b){return(a.startTime||'').localeCompare(b.startTime||'');});
+    if(!dayEvs.length)continue;
+    var dayLabel=di===0?'Today':di===1?'Tomorrow':DAYS[dayD.getDay()]+' '+dayD.getDate()+' '+MS[dayD.getMonth()];
+    eventsHtml+='<div class="kv-event-day">'+dayLabel+'</div>';
+    eventsHtml+=dayEvs.map(function(ev){
       var ms=(ev.memberIds||[]).map(function(id){return state.members.find(function(m){return m.id===id;});}).filter(Boolean);
       var color=ms[0]&&ms[0].color||ch.color;
       return kvEventRow(ev,color);
