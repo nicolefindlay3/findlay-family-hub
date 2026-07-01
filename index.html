@@ -3863,7 +3863,7 @@ function selectKidView(memberId){
 function kvEventRow(ev,color){
   return '<div class="kv-event-row">'+
     '<div class="kv-event-dot" style="background:'+color+'"></div>'+
-    '<div class="kv-event-title">'+ev.title+'</div>'+
+    '<div class="kv-event-title">'+ev.title+(ev.startTime?' <span style="font-size:13px;font-weight:700;color:#aaa">'+fmtTime(ev.startTime)+'</span>':'')+'</div>'+
   '</div>';
 }
 
