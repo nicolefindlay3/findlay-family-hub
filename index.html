@@ -3744,9 +3744,24 @@ function checkAlarms(){
   var now=new Date();
   var hh=pad(now.getHours());var mm=pad(now.getMinutes());
   var nowStr=hh+':'+mm;
+
+  // Determine which alarms this tablet should fire
+  var kioskChild=null;
+  try{kioskChild=localStorage.getItem('kiosk_child');}catch(e){}
+
   for(var i=0;i<state.alarms.length;i++){
     var al=state.alarms[i];
     if(!al.enabled)continue;
+
+    // Ownership check:
+    // - Kiosk tablet: only fire alarms belonging to that child
+    // - Main tablet: only fire alarms with no owner (family-wide)
+    if(kioskChild){
+      if(al.ownerId!==kioskChild)continue;
+    } else {
+      if(al.ownerId)continue; // skip child-owned alarms on main tablet
+    }
+
     if(al.snoozedUntil){var snoozeEnd=new Date(al.snoozedUntil);if(now<snoozeEnd)continue;al.snoozedUntil=null;}
     if(!alarmMatchesToday(al))continue;
     var alTime=getAlarmTimeForToday(al);
