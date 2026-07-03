@@ -4063,8 +4063,22 @@ function kvAlarmsSection(ch){
   return '<div class="kv-section">'+
     '<div class="kv-section-title" style="color:'+ch.color+'">⏰ My Alarms</div>'+
     rows+
-    '<button onclick="openKidAlarmModal(\''+ch.id+'\')" style="width:100%;margin-top:10px;background:'+ch.color+'18;border:none;border-radius:14px;padding:14px;font-family:\'Fredoka One\',cursive;font-size:16px;color:'+ch.color+';cursor:pointer">+ Add My Alarm</button>'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+
+      '<button onclick="quickSetAlarm6am(\''+ch.id+'\')" style="flex:1;background:#FFF8E7;border:2px solid #FFD93D;border-radius:14px;padding:12px;font-family:\'Fredoka One\',cursive;font-size:15px;color:#F9A825;cursor:pointer">⏰ 6am tomorrow</button>'+
+      '<button onclick="openKidAlarmModal(\''+ch.id+'\')" style="flex:1;background:'+ch.color+'18;border:none;border-radius:14px;padding:12px;font-family:\'Fredoka One\',cursive;font-size:15px;color:'+ch.color+';cursor:pointer">+ Custom alarm</button>'+
+    '</div>'+
   '</div>';
+}
+
+function quickSetAlarm6am(ownerId){
+  var tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+  var alarm={id:uid(),label:'Wake up!',time:'06:00',recurrence:'once',date:dStr(tomorrow),daysOfWeek:[],schedule:{},sound:'chime',enabled:true,snoozedUntil:null,ownerId:ownerId};
+  if(!state.alarms)state.alarms=[];
+  state.alarms.push(alarm);
+  save();
+  var member=state.members.find(function(m){return m.id===ownerId;});
+  showToast('⏰ 6am alarm set for tomorrow'+(member?' for '+member.name:'')+'!');
+  if(document.getElementById('tab-kidview').classList.contains('active'))renderKidView();
 }
 
 function openKidAlarmModal(ownerId){
