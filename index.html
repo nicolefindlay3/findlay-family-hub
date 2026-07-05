@@ -698,7 +698,6 @@ create policy "public_access" on app_state
   <button class="nav-btn" onclick="switchTab('calendar',this)"><span class="ni">📅</span><span>Cal</span></button>
   <button class="nav-btn" onclick="switchTab('chores',this)"><span class="ni"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l6-6"/><path d="M12.5 8.5l-8 8 2 2 8-8"/><path d="M15 5l4 4"/><path d="M17.5 2.5a2.121 2.121 0 013 3L8 18l-3-3L17.5 2.5z"/></svg></span><span>Chores</span></button>
   <button class="nav-btn" onclick="switchTab('points',this)"><span class="ni">⭐</span><span>Points</span></button>
-  <button class="nav-btn" onclick="switchTab('routine',this)"><span class="ni">🌅</span><span>Routine</span></button>
   <button class="nav-btn" onclick="switchTab('kidview',this)"><span class="ni">📱</span><span>Kid View</span></button>
   <button id="side-fab" onclick="openAddModal()">+</button>
 </nav>
@@ -828,14 +827,7 @@ create policy "public_access" on app_state
     <div class="card"><div id="pts-history"></div></div>
   </div>
 
-  <div class="tab-panel" id="tab-routine">
-    <div class="sec-hdr">
-      <div class="sec-title">🌅 Routine</div>
-      <button class="btn btn-ghost btn-sm" onclick="openRoutineCsvGated()">📥 Import CSV</button>
-    </div>
-    <input type="file" id="routine-csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="handleRoutineCSVUpload(this)">
-    <div id="routine-content"></div>
-  </div>
+  <input type="file" id="routine-csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="handleRoutineCSVUpload(this)">
 
   <div class="tab-panel" id="tab-kidview">
     <div id="kidview-switcher"></div>
@@ -4025,17 +4017,25 @@ function renderKidView(){
       pinBtnHtml+
     '</div>'+
     eventsSection+
-    '<div class="kv-period-grid">'+
-      kvRoutineSection(ch,'morning',today)+
-      kvRoutineSection(ch,'afternoon',today)+
-    '</div>'+
-    (dailyChores.length?
-    '<div class="kv-section">'+
-      '<div class="kv-section-title" style="color:'+ch.color+'">🧹 Daily Job ('+doneDaily+'/'+dailyChores.length+')</div>'+
-      choreRows+
-    '</div>':'')+
-    kvExtraJobsSection(ch,today)+
-    kvAlarmsSection(ch);
+    (function(){
+      var morningTasks=getRoutineTasks(ch.id,'morning');
+      var morningDone=morningTasks.length>0&&morningTasks.every(function(t){return isRoutineTaskDone(t.id,ch.id,today);});
+      var morningHtml=kvRoutineSection(ch,'morning',today);
+      var afternoonHtml=kvRoutineSection(ch,'afternoon',today);
+      if(morningDone){
+        // Morning all done — show afternoon first, morning at bottom
+        return '<div class="kv-period-grid">'+afternoonHtml+'</div>'+
+               (dailyChores.length?'<div class="kv-section"><div class="kv-section-title" style="color:'+ch.color+'">🧹 Daily Job ('+doneDaily+'/'+dailyChores.length+')</div>'+choreRows+'</div>':'')+
+               kvExtraJobsSection(ch,today)+
+               '<div class="kv-period-grid">'+morningHtml+'</div>'+
+               kvAlarmsSection(ch);
+      } else {
+        return '<div class="kv-period-grid">'+morningHtml+afternoonHtml+'</div>'+
+               (dailyChores.length?'<div class="kv-section"><div class="kv-section-title" style="color:'+ch.color+'">🧹 Daily Job ('+doneDaily+'/'+dailyChores.length+')</div>'+choreRows+'</div>':'')+
+               kvExtraJobsSection(ch,today)+
+               kvAlarmsSection(ch);
+      }
+    })();
 }
 
 function kvExtraJobsSection(ch,today){
@@ -4376,6 +4376,7 @@ function confirmRoutineCSVImport(){
 
 function renderRoutine(){
   var container=document.getElementById('routine-content');
+  if(!container)return;
   var today=todayStr();
   var kids=state.members.filter(function(m){return m.isChild;});
   if(!kids.length){
