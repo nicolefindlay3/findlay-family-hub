@@ -3762,14 +3762,9 @@ function checkAlarms(){
     var al=state.alarms[i];
     if(!al.enabled)continue;
 
-    // Ownership check:
-    // - Kiosk tablet: only fire alarms belonging to that child
-    // - Main tablet: only fire alarms with no owner (family-wide)
-    if(kioskChild){
-      if(al.ownerId!==kioskChild)continue;
-    } else {
-      if(al.ownerId)continue; // skip child-owned alarms on main tablet
-    }
+    // Only fire alarms on the main (non-kiosk) tablet
+    if(kioskChild)return;
+    if(al.ownerId)continue; // skip child-owned alarms everywhere (no longer used)
 
     if(al.snoozedUntil){var snoozeEnd=new Date(al.snoozedUntil);if(now<snoozeEnd)continue;al.snoozedUntil=null;}
     if(!alarmMatchesToday(al))continue;
@@ -4036,13 +4031,11 @@ function renderKidView(){
         return '<div class="kv-period-grid">'+afternoonHtml+'</div>'+
                (dailyChores.length?'<div class="kv-section"><div class="kv-section-title" style="color:'+ch.color+'">🧹 Daily Job ('+doneDaily+'/'+dailyChores.length+')</div>'+choreRows+'</div>':'')+
                kvExtraJobsSection(ch,today)+
-               '<div class="kv-period-grid">'+morningHtml+'</div>'+
-               kvAlarmsSection(ch);
+               '<div class="kv-period-grid">'+morningHtml+'</div>';
       } else {
         return '<div class="kv-period-grid">'+morningHtml+afternoonHtml+'</div>'+
                (dailyChores.length?'<div class="kv-section"><div class="kv-section-title" style="color:'+ch.color+'">🧹 Daily Job ('+doneDaily+'/'+dailyChores.length+')</div>'+choreRows+'</div>':'')+
-               kvExtraJobsSection(ch,today)+
-               kvAlarmsSection(ch);
+               kvExtraJobsSection(ch,today);
       }
     })();
 }
