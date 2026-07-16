@@ -723,7 +723,7 @@ create policy "public_access" on app_state
     <div class="sec-hdr"><div class="sec-title">🧹 Today's Chores</div></div>
     <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:12px 16px;margin-bottom:10px;border-left:4px solid #e53935">
       <div style="font-family:'Fredoka One',cursive;font-size:14px;color:#FF6B6B;margin-bottom:4px">⚠️ Points Rule</div>
-      <div style="font-size:12px;color:#e0e0e0;line-height:1.5;font-weight:700">Do your jobs <span style="color:#FFD93D">WITHOUT being asked</span> to earn points. If you don't do it — whether you forgot or chose not to — <span style="color:#FF6B6B">you pay someone else to do it. That costs you 1 point. 👤</span></div>
+      <div style="font-size:12px;color:#e0e0e0;line-height:1.5;font-weight:700">Do your jobs <span style="color:#FFD93D">WITHOUT being asked</span> to earn points. Jobs must be done by <span style="color:#FFD93D">6:00pm</span> — after that, no points. If you don't do it, you <span style="color:#FF6B6B">pay someone else 1 point. 👤</span></div>
     </div>
     <div id="todays-chores-list"></div>
   </div>
@@ -800,7 +800,7 @@ create policy "public_access" on app_state
     </div>
     <div style="margin:0 0 10px;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:14px 16px;border-left:4px solid #e53935">
       <div style="font-family:'Fredoka One',cursive;font-size:15px;color:#FF6B6B;margin-bottom:6px">⚠️ Points Rule — Read This!</div>
-      <div style="font-size:13px;color:#e0e0e0;line-height:1.6;font-weight:700">Do your jobs <span style="color:#FFD93D">WITHOUT being asked</span> to earn points.<br>If you don't do your job — <span style="color:#aaa;font-weight:600">whether you forgot or chose not to</span> — you will need to <span style="color:#FF6B6B">pay someone else to do it. That costs you 1 point. 👤</span><br><span style="color:#aaa;font-weight:600;font-size:12px">Do it yourself, unprompted, and the points are yours. 🌟</span></div>
+      <div style="font-size:13px;color:#e0e0e0;line-height:1.6;font-weight:700">Do your jobs <span style="color:#FFD93D">WITHOUT being asked</span> to earn points.<br>Jobs must be done by <span style="color:#FFD93D">6:00pm</span> — tick it off after 6pm and you get no points.<br>If you don't do your job — <span style="color:#aaa;font-weight:600">whether you forgot or chose not to</span> — you will need to <span style="color:#FF6B6B">pay someone else to do it. That costs you 1 point. 👤</span><br><span style="color:#aaa;font-weight:600;font-size:12px">Do it yourself, before 6pm, without being asked — and the points are yours. 🌟</span></div>
     </div>
     <input type="file" id="csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="handleCSVUpload(this)">
     <div style="display:flex;align-items:center;gap:0;background:#fff;border-bottom:1px solid #f0f0f0;padding:0 8px">
@@ -2465,9 +2465,18 @@ function toggleChore(cId,mId,ds,el){
   }else{
     state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString()});
     var pts=chore&&chore.noPoints?0:(chore&&chore.points?chore.points:1);
-    if(pts>0){addPtsTx(mId,pts,'✅ '+(chore&&chore.title||'Chore'),'chore',cId,ds);showPtBurst('+'+pts+'⭐',el);}
-    playChime();choreBurst(el);triggerConfetti(el);
-    showToast(pts>0?'+'+pts+' point'+(pts>1?'s':'')+'! ⭐':'✅ '+(chore&&chore.title||'Done')+'!');
+    var now=new Date();var afterDeadline=now.getHours()>=18;
+    if(afterDeadline&&pts>0){
+      showToast('✅ Done — but no points after 6pm ⏰');
+      playChime();choreBurst(el);
+    } else if(pts>0){
+      addPtsTx(mId,pts,'✅ '+(chore&&chore.title||'Chore'),'chore',cId,ds);showPtBurst('+'+pts+'⭐',el);
+      playChime();choreBurst(el);triggerConfetti(el);
+      showToast('+'+pts+' point'+(pts>1?'s':'')+'! ⭐');
+    } else {
+      playChime();choreBurst(el);
+      showToast('✅ '+(chore&&chore.title||'Done')+'!');
+    }
   }
   save();
   renderChores();
