@@ -883,9 +883,9 @@ create policy "public_access" on app_state
     </div>
 
     <div style="margin-top:8px;font-size:11px;font-weight:700;color:#aaa">
-      CSV format: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px">chore, points, date, who, type</code>
-      &nbsp;— set <b>type</b> to <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">extra</code> for bonus jobs (no <i>who</i> needed)
-      &nbsp;·&nbsp; Date can be a day name (Monday) or date (2025-03-10) &nbsp;·&nbsp; "who" matches member names
+      Regular: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px">chore, points, date, who, type</code><br>
+      Date-range extra: <code style="background:#FFF8E7;padding:1px 5px;border-radius:4px">chore, points, date from, date to, , extra</code><br>
+      Date can be a day name (Monday) or YYYY-MM-DD &nbsp;·&nbsp; "who" matches member names
     </div>
 
     <div style="display:flex;gap:10px;margin-top:16px">
@@ -2644,8 +2644,19 @@ function parseCSVAndPreview(text){
     var rawChore=fields[0]||'';
     var rawPts=fields[1]||'1';
     var rawDate=fields[2]||'';
-    var rawWho=fields[3]||'';
-    var rawType=(fields[4]||'').trim().toLowerCase();
+    var rawDateTo=fields[3]||'';
+    var rawWho=fields[4]||'';
+    var rawType=(fields[5]||'').trim().toLowerCase();
+
+    // Detect if date range format: if col 3 looks like a date, treat as dateTo
+    // Otherwise fall back to old 5-col format: chore, pts, date, who, type
+    var hasDateRange=rawDateTo&&resolveDate(rawDateTo);
+    if(!hasDateRange){
+      // Old format: chore, pts, date, who, type
+      rawWho=fields[3]||'';
+      rawType=(fields[4]||'').trim().toLowerCase();
+      rawDateTo='';
+    }
 
     var title=rawChore.trim();
     if(!title)continue;
@@ -2654,16 +2665,19 @@ function parseCSVAndPreview(text){
     var noPoints=pts===0;
     var isExtra=rawType==='extra'||rawType==='bonus'||rawType==='💫';
 
-    var date=resolveDate(rawDate);
+    var dateFrom=resolveDate(rawDate);
+    var dateTo=hasDateRange?resolveDate(rawDateTo):null;
     var member=isExtra?null:resolveMember(rawWho);
 
     var status='ok';
-    if(!date){status='warn';warnings.push('Row '+(i+1)+': "'+rawDate+'" — could not parse date, will use today');}
+    if(!dateFrom){status='warn';warnings.push('Row '+(i+1)+': "'+rawDate+'" — could not parse date, will use today');}
     if(!isExtra&&!member&&rawWho){status='warn';warnings.push('Row '+(i+1)+': "'+rawWho+'" — no matching member found, will be unassigned');}
 
     csvParsedRows.push({
       title:title,pts:pts,noPoints:noPoints,isExtra:isExtra,
-      date:date||todayStr(),
+      date:(!hasDateRange?dateFrom:null)||todayStr(),
+      dateFrom:hasDateRange?dateFrom:null,
+      dateTo:dateTo,
       member:member,rawWho:rawWho,rawDate:rawDate,rawType:rawType,status:status,rowNum:i+1
     });
   }
@@ -2683,11 +2697,12 @@ function parseCSVAndPreview(text){
     var memberName=r.isExtra?
       '<span style="color:#F9A825;font-weight:700">💫 Extra</span>':
       (r.member?'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:'+r.member.color+';display:inline-block"></span>'+r.member.name+'</span>':'<span style="color:#e57373">'+(r.rawWho||'—')+'</span>');
+    var dateDisplay=r.dateFrom&&r.dateTo?(r.dateFrom+' → '+r.dateTo):r.date;
     var statusBadge=r.status==='ok'?'<span style="color:#2e7d32;font-size:16px">✓</span>':'<span style="color:#e65100;font-size:16px">⚠</span>';
     return'<tr style="border-bottom:1px solid #f5f5f5">'+
       '<td style="padding:9px 12px;font-weight:700">'+r.title+'</td>'+
       '<td style="padding:9px 12px">'+memberName+'</td>'+
-      '<td style="padding:9px 12px;color:#666">'+r.date+'</td>'+
+      '<td style="padding:9px 12px;color:#666">'+dateDisplay+'</td>'+
       '<td style="padding:9px 12px;text-align:center">'+(r.noPoints?'—':r.pts+'⭐')+'</td>'+
       '<td style="padding:9px 12px;text-align:center">'+statusBadge+'</td>'+
     '</tr>';
@@ -2707,7 +2722,10 @@ function confirmCSVImport(){
     var m=r.member;
     var chore={
       id:uid(),title:r.title,points:r.pts,noPoints:r.noPoints,isExtra:r.isExtra||false,
-      memberIds:memberIds,date:r.date,
+      memberIds:memberIds,
+      date:r.date||'',
+      dateFrom:r.dateFrom||null,
+      dateTo:r.dateTo||null,
       color:m&&m.color||'#F9A825'
     };
     state.chores.push(chore);
