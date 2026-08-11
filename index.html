@@ -3812,12 +3812,7 @@ function kvRoutineSection(ch,period,today){
   var label=period==='morning'?'Morning':'Afternoon';
   var secId='kv-rt-'+ch.id+'-'+period;
 
-  if(!total){
-    return '<div class="kv-section">'+
-      '<div class="kv-section-title" style="color:'+ch.color+'">'+icon+' '+label+'</div>'+
-      '<p style="color:#ccc;text-align:center;padding:10px 0;font-size:14px">No tasks set</p>'+
-    '</div>';
-  }
+  if(!total)return '';
 
   var pendingRows=tasks.filter(function(t){return !isRoutineTaskDone(t.id,ch.id,today);}).map(function(t){
     return '<div class="kv-rt-cell">'+
