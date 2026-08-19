@@ -2378,11 +2378,7 @@ function toggleChore(cId,mId,ds,el){
   }else{
     state.choreCompletions.push({choreId:cId,memberId:mId,date:ds,completedAt:new Date().toISOString()});
     var pts=chore&&chore.noPoints?0:(chore&&chore.points?chore.points:1);
-    var now=new Date();var afterDeadline=now.getHours()>=18;
-    if(afterDeadline&&pts>0){
-      showToast('✅ Done — but no points after 6pm ⏰');
-      playChime();choreBurst(el);
-    } else if(pts>0){
+    if(pts>0){
       addPtsTx(mId,pts,'✅ '+(chore&&chore.title||'Chore'),'chore',cId,ds);showPtBurst('+'+pts+'⭐',el);
       playChime();choreBurst(el);triggerConfetti(el);
       showToast('+'+pts+' point'+(pts>1?'s':'')+'! ⭐');
