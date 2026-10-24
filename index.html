@@ -397,6 +397,41 @@ body.kiosk-mode #main{padding-bottom:20px}
 .imp-msg-text{flex:1;font-weight:700;font-size:14px;line-height:1.5;color:#333}
 .imp-msg-edit{background:none;border:none;font-size:16px;cursor:pointer;opacity:0.4;padding:0 0 0 6px;flex-shrink:0}
 
+
+/* ── LEADERBOARD MODAL ── */
+.lb-range-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.lb-range-btn{padding:6px 12px;border-radius:20px;border:2px solid var(--border);background:#fff;font-family:'Nunito';font-weight:800;font-size:12px;cursor:pointer;color:var(--muted);-webkit-tap-highlight-color:transparent}
+.lb-range-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.lb-jobs{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px}
+.lb-period{text-align:center;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px}
+
+/* ── BATTLE PASS SHOP ── */
+.shop-tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.shop-tabs::-webkit-scrollbar{display:none}
+.shop-tab-btn{padding:7px 14px;border-radius:20px;border:2px solid var(--border);background:#fff;font-family:'Nunito';font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.shop-tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.skin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.skin-card{border-radius:16px;border:2px solid var(--border);padding:12px;text-align:center;background:#fff;position:relative;cursor:pointer}
+.skin-card.owned{border-color:#4CAF50}
+.skin-card.active-skin{border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,92,231,0.2)}
+.skin-preview{width:100%;height:60px;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.skin-name{font-weight:800;font-size:13px;margin-bottom:3px}
+.skin-cost{font-family:'Fredoka One',cursive;font-size:15px;color:#F9A825}
+.skin-badge{position:absolute;top:7px;right:7px;border-radius:8px;padding:2px 7px;font-size:10px;font-weight:800;color:#fff}
+.skin-badge.owned{background:#4CAF50}
+.skin-badge.active{background:var(--primary)}
+.shop-bal-box{text-align:center;background:linear-gradient(135deg,#FECA57,#FF8E53);border-radius:14px;padding:10px;margin-bottom:14px;color:#fff}
+.shop-bal-num{font-family:'Fredoka One',cursive;font-size:28px}
+.shop-bal-lbl{font-size:12px;font-weight:800;opacity:0.85}
+.bp-tier{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:14px;margin-bottom:8px;box-shadow:var(--shadow);border-left:4px solid #ddd}
+.bp-tier.unlocked{border-left-color:var(--green)}
+.bp-tier-icon{font-size:26px;width:36px;text-align:center;flex-shrink:0}
+.bp-tier-info{flex:1}
+.bp-tier-name{font-weight:800;font-size:14px}
+.bp-tier-req{font-size:12px;font-weight:700;color:var(--muted)}
+.bp-unlock{background:var(--green);color:#fff;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:800;flex-shrink:0}
+.bp-locked{background:#eee;color:#aaa;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:800;flex-shrink:0}
+
 /* ── EXTRA CHORES ── */
 .extra-section{margin:10px 0 0;padding:12px 16px;background:linear-gradient(135deg,#FFF8E7,#FFF3CD);border-radius:16px;border:2px dashed #FFD93D}
 .extra-section-title{font-family:'Fredoka One',cursive;font-size:15px;color:#F9A825;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -817,7 +852,11 @@ create policy "public_access" on app_state
   <div class="tab-panel" id="tab-points">
     <div class="sec-hdr" style="padding-bottom:0">
       <div class="sec-title">⭐ Points</div>
-      <button class="btn btn-primary btn-sm" onclick="openAddPtsModalGated()">+ Add</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="openLeaderboardModal()" title="Leaderboard">🏆</button>
+        <button class="btn btn-outline btn-sm" onclick="openShopModal(null)" title="Shop">🛍️</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddPtsModalGated()">+ Add</button>
+      </div>
     </div>
     <div class="pts-grid" id="pts-balances"></div>
     <div class="sec-hdr">
@@ -840,6 +879,46 @@ create policy "public_access" on app_state
 </div><!-- #app-shell -->
 
 <div id="toast"></div>
+
+<!-- LEADERBOARD MODAL -->
+<div class="modal-overlay" id="modal-leaderboard">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🏆 Leaderboard</div>
+    <div class="lb-range-row">
+      <button class="lb-range-btn active" onclick="setLbRange('week',this)">This Week</button>
+      <button class="lb-range-btn" onclick="setLbRange('lastweek',this)">Last Week</button>
+      <button class="lb-range-btn" onclick="setLbRange('month',this)">This Month</button>
+      <button class="lb-range-btn" onclick="setLbRange('alltime',this)">All Time</button>
+    </div>
+    <div id="lb-period-label" class="lb-period"></div>
+    <div id="lb-modal-content"></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="closeModal('modal-leaderboard')">Close</button>
+  </div>
+</div>
+
+<!-- BATTLE PASS SHOP MODAL -->
+<div class="modal-overlay" id="modal-shop">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎨 Shop</div>
+    <div id="shop-who-row" style="text-align:center;font-family:'Fredoka One',cursive;font-size:15px;color:var(--primary);margin-bottom:6px"></div>
+    <div class="shop-bal-box">
+      <div class="shop-bal-num"><span id="shop-bal-num">0</span> ⭐</div>
+      <div class="shop-bal-lbl">Points to spend</div>
+    </div>
+    <div class="shop-tabs">
+      <button class="shop-tab-btn active" onclick="setShopTab('themes',this)">🎨 Themes</button>
+      <button class="shop-tab-btn" onclick="setShopTab('frames',this)">✨ Frames</button>
+      <button class="shop-tab-btn" onclick="setShopTab('badges',this)">🏅 Badges</button>
+      <button class="shop-tab-btn" onclick="setShopTab('battlepass',this)">🎯 Pass</button>
+    </div>
+    <input type="hidden" id="shop-mid">
+    <div id="shop-content" style="max-height:55vh;overflow-y:auto"></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:14px" onclick="closeModal('modal-shop')">Done</button>
+  </div>
+</div>
+
 
 <!-- SCREENSAVER -->
 <div id="screensaver-overlay" onclick="hideScreensaver()">
@@ -1535,7 +1614,6 @@ function getDefaultFamily(){
       {id:'m-nic',   name:'Nic',    color:'#45B7D1', isChild:false, initial:'N'},
       {id:'m-amelia',name:'Amelia', color:'#FF9FF3', isChild:true,  initial:'A'},
       {id:'m-harry', name:'Harry',  color:'#54A0FF', isChild:true,  initial:'H'},
-      {id:'m-jimmy', name:'Jimmy',  color:'#4ECDC4', isChild:true,  initial:'J'},
       {id:'m-dutic', name:'Dutic',  color:'#96CEB4', isChild:true,  initial:'D'},
     ],
     storeItems:[
@@ -1792,6 +1870,339 @@ function switchTab(tab,btn){
   if(tab==='kidview')renderKidView();
 }
 
+
+// ════════════════════════════════════════
+// SKINS / SHOP CATALOG
+// ════════════════════════════════════════
+var SKINS=[
+  // THEMES (card header gradient)
+  {id:'skin-fire',  name:'🔥 Blaze',    cost:30,  type:'theme',  gradient:'linear-gradient(135deg,#FF6B35,#F7C59F)', desc:'Blazing hot'},
+  {id:'skin-ocean', name:'🌊 Ocean',    cost:30,  type:'theme',  gradient:'linear-gradient(135deg,#0099F7,#00B4DB)', desc:'Deep blue waves'},
+  {id:'skin-forest',name:'🌿 Forest',   cost:30,  type:'theme',  gradient:'linear-gradient(135deg,#56AB2F,#A8E063)', desc:'Lush & green'},
+  {id:'skin-candy', name:'🍬 Candy',    cost:40,  type:'theme',  gradient:'linear-gradient(135deg,#FF9FF3,#F368E0)', desc:'Sweet & bright'},
+  {id:'skin-galaxy',name:'🌌 Galaxy',   cost:60,  type:'theme',  gradient:'linear-gradient(135deg,#1A1A2E,#7C3AED)', desc:'Out of this world'},
+  {id:'skin-gold',  name:'👑 Gold',     cost:80,  type:'theme',  gradient:'linear-gradient(135deg,#F7971E,#FFD200)', desc:'Pure royalty'},
+  {id:'skin-rainbow',name:'🌈 Rainbow', cost:120, type:'theme',  gradient:'linear-gradient(135deg,#F093FB,#F5576C,#4FACFE,#43E97B)', desc:'All the colours!'},
+  {id:'skin-night', name:'🌙 Midnight', cost:50,  type:'theme',  gradient:'linear-gradient(135deg,#232526,#414345)', desc:'Dark & cool'},
+  // FRAMES (avatar border)
+  {id:'frame-star',   name:'⭐ Star',      cost:20, type:'frame', frameColor:'#FFD700', desc:'Gold star border'},
+  {id:'frame-fire',   name:'🔥 Fire',      cost:25, type:'frame', frameColor:'#FF6B35', desc:'Fiery border'},
+  {id:'frame-rainbow',name:'🌈 Rainbow',   cost:45, type:'frame', frameColor:'rainbow',  desc:'Colourful border'},
+  {id:'frame-glow',   name:'✨ Glow',      cost:35, type:'frame', frameColor:'#A855F7',  desc:'Purple glow'},
+  {id:'frame-neon',   name:'💚 Neon',      cost:40, type:'frame', frameColor:'#00FF88',  desc:'Neon green'},
+  // BADGES (name tag flair)
+  {id:'badge-star',   name:'⭐ Star Player',   cost:50,  type:'badge', badgeIcon:'⭐', desc:'Star of the team'},
+  {id:'badge-champ',  name:'🏆 Champion',     cost:80,  type:'badge', badgeIcon:'🏆', desc:'Champion badge'},
+  {id:'badge-legend', name:'👑 Legend',        cost:150, type:'badge', badgeIcon:'👑', desc:'Legendary status'},
+  {id:'badge-fire',   name:'🔥 On Fire',       cost:60,  type:'badge', badgeIcon:'🔥', desc:'On a hot streak'},
+  {id:'badge-boss',   name:'😎 Boss Mode',     cost:100, type:'badge', badgeIcon:'😎', desc:'Ultimate boss'}
+];
+
+var BATTLE_PASS_TIERS=[
+  {jobs:1,  icon:'🌱', name:'First Step',    reward:'Blaze Theme',      skinId:'skin-fire'},
+  {jobs:5,  icon:'⭐', name:'Getting Going', reward:'Star Frame',       skinId:'frame-star'},
+  {jobs:10, icon:'💪', name:'Hard Worker',   reward:'Ocean Theme',      skinId:'skin-ocean'},
+  {jobs:20, icon:'🌊', name:'Going Strong',  reward:'Glow Frame',       skinId:'frame-glow'},
+  {jobs:35, icon:'🔥', name:'On Fire',       reward:'Star Player Badge',skinId:'badge-star'},
+  {jobs:50, icon:'🌌', name:'Galaxy Brain',  reward:'Galaxy Theme',     skinId:'skin-galaxy'},
+  {jobs:75, icon:'💚', name:'Neon God',      reward:'Neon Frame',       skinId:'frame-neon'},
+  {jobs:100,icon:'🏆', name:'Champion',      reward:'Champion Badge',   skinId:'badge-champ'},
+  {jobs:150,icon:'🌈', name:'Rainbow Star',  reward:'Rainbow Theme',    skinId:'skin-rainbow'},
+  {jobs:200,icon:'👑', name:'Legend',         reward:'Legend Badge',     skinId:'badge-legend'},
+];
+
+function getSkinById(id){
+  for(var i=0;i<SKINS.length;i++){if(SKINS[i].id===id)return SKINS[i];}
+  return null;
+}
+function getMemberSkins(m){
+  return m.purchasedSkins||[];
+}
+function hasSkin(m,skinId){
+  return getMemberSkins(m).indexOf(skinId)>=0;
+}
+
+// ════════════════════════════════════════
+// LEADERBOARD MODAL
+// ════════════════════════════════════════
+var lbRange='week';
+
+function openLeaderboardModal(){
+  lbRange='week';
+  var btns=document.querySelectorAll('.lb-range-btn');
+  for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
+  if(btns[0])btns[0].classList.add('active');
+  renderLeaderboardModal();
+  openModal('modal-leaderboard');
+}
+
+function setLbRange(range,btn){
+  lbRange=range;
+  var btns=document.querySelectorAll('.lb-range-btn');
+  for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
+  if(btn)btn.classList.add('active');
+  renderLeaderboardModal();
+}
+
+function lbGetWeekStart(offsetWeeks){
+  var d=new Date();
+  // Week starts Saturday: Sun=0 Mon=1 ... Sat=6
+  // Days since last Saturday: Sun->1, Mon->2, ... Fri->6, Sat->0
+  var dow=d.getDay();
+  var daysSinceSat=dow===0?1:dow===6?0:dow+1; // wrong, let me think
+  // Sat=6: 0 days ago. Sun=0: 1 day ago. Mon=1: 2 days ago. Fri=5: 6 days ago.
+  daysSinceSat=(dow+1)%7; // Sat=6 -> (6+1)%7=0 ✓, Sun=0 -> (0+1)%7=1 ✓, Fri=5 -> (5+1)%7=6 ✓
+  d.setDate(d.getDate()-daysSinceSat+(offsetWeeks*7));
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function renderLeaderboardModal(){
+  var now=new Date();
+  var startD, endD, labelStr;
+  if(lbRange==='week'){
+    startD=lbGetWeekStart(0);
+    endD=new Date(startD);endD.setDate(startD.getDate()+6);
+    labelStr='Sat '+startD.getDate()+' – Fri '+endD.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][endD.getMonth()];
+  } else if(lbRange==='lastweek'){
+    startD=lbGetWeekStart(-1);
+    endD=new Date(startD);endD.setDate(startD.getDate()+6);
+    labelStr='Last Week: Sat '+startD.getDate()+' – Fri '+endD.getDate();
+  } else if(lbRange==='month'){
+    startD=new Date(now.getFullYear(),now.getMonth(),1);
+    endD=new Date(now.getFullYear(),now.getMonth()+1,0);
+    var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    labelStr=months[now.getMonth()]+' '+now.getFullYear();
+  } else {
+    startD=new Date(2000,0,1);
+    endD=new Date(2099,0,1);
+    labelStr='All Time';
+  }
+  var startStr=dStr(startD);
+  var endStr=dStr(endD);
+
+  var children=state.members.filter(function(m){return m.isChild;});
+  var stats=children.map(function(m){
+    var txs=state.pointsTransactions.filter(function(t){
+      return t.memberId===m.id&&t.date>=startStr&&t.date<=endStr;
+    });
+    var earned=txs.reduce(function(s,t){return s+(t.amount>0?t.amount:0);},0);
+    var jobsDone=txs.filter(function(t){return t.type==='chore'&&t.amount>0;}).length;
+    return{m:m,earned:earned,jobsDone:jobsDone};
+  });
+  stats.sort(function(a,b){return b.earned-a.earned;});
+  var maxEarned=stats.length&&stats[0].earned>0?stats[0].earned:1;
+
+  var ranks=['🥇','🥈','🥉'];
+  var rankClass=['gold','silver','bronze'];
+
+  var periodEl=document.getElementById('lb-period-label');
+  if(periodEl)periodEl.innerHTML=labelStr;
+
+  var html='';
+  // Top chips
+  html+='<div class="lb-header">';
+  for(var i=0;i<stats.length;i++){
+    var s=stats[i];
+    var isTop=i===0&&s.earned>0;
+    html+='<div class="lb-chip'+(isTop?' top':'')+'">'+
+      '<div class="lb-chip-pts">'+s.earned+'</div>'+
+      '<div class="lb-chip-name">'+s.m.name+'</div>'+
+    '</div>';
+  }
+  html+='</div>';
+  // Ranked rows
+  for(var i=0;i<stats.length;i++){
+    var s=stats[i];
+    var pct=Math.round((s.earned/maxEarned)*100);
+    var rankIcon=i<3?ranks[i]:(i+1)+'';
+    var rc=i<3?rankClass[i]:'';
+    html+='<div class="lb-row">'+
+      '<div class="lb-rank '+rc+'">'+rankIcon+'</div>'+
+      memberAvatar(s.m,34,13)+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:baseline;justify-content:space-between">'+
+          '<div class="lb-name">'+s.m.name+'</div>'+
+          '<div class="lb-pts" style="color:'+s.m.color+'">'+s.earned+'<span style="font-size:13px;color:var(--muted)"> pts</span></div>'+
+        '</div>'+
+        '<div class="lb-bar-wrap"><div class="lb-bar" style="width:'+pct+'%;background:'+s.m.color+'"></div></div>'+
+        '<div class="lb-jobs">💼 '+s.jobsDone+' job'+(s.jobsDone!==1?'s':'')+'</div>'+
+      '</div>'+
+    '</div>';
+  }
+  if(!stats.length){html='<div class="empty-state"><div class="emoji">🏆</div><p>No kids set up yet</p></div>';}
+  document.getElementById('lb-modal-content').innerHTML=html;
+}
+
+// ════════════════════════════════════════
+// SHOP / BATTLE PASS
+// ════════════════════════════════════════
+var shopTab='themes';
+
+function openShopModal(mId){
+  // If no mId specified, pick first child
+  var children=state.members.filter(function(m){return m.isChild;});
+  if(!mId&&children.length)mId=children[0].id;
+  if(!mId){showToast('No children set up');return;}
+  document.getElementById('shop-mid').value=mId;
+  shopTab='themes';
+  var btns=document.querySelectorAll('.shop-tab-btn');
+  for(var i=0;i<btns.length;i++){btns[i].classList.remove('active');if(i===0)btns[i].classList.add('active');}
+  renderShop();
+  openModal('modal-shop');
+}
+
+function setShopTab(tab,btn){
+  shopTab=tab;
+  var btns=document.querySelectorAll('.shop-tab-btn');
+  for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
+  if(btn)btn.classList.add('active');
+  renderShop();
+}
+
+function renderShop(){
+  var mId=document.getElementById('shop-mid').value;
+  var m=state.members.find(function(x){return x.id===mId;});
+  if(!m)return;
+  var bal=getBalance(mId);
+  var balEl=document.getElementById('shop-bal-num');
+  if(balEl)balEl.innerHTML=bal;
+  var whoEl=document.getElementById('shop-who-row');
+  if(whoEl)whoEl.innerHTML=m.avatarEmoji||m.initial+' '+m.name;
+  var owned=m.purchasedSkins||[];
+  var activeSkin=m.activeSkin||null;
+  var activeFrame=m.activeFrame||null;
+  var activeBadge=m.activeBadge||null;
+
+  var html='';
+
+  if(shopTab==='themes'){
+    var themes=SKINS.filter(function(s){return s.type==='theme';});
+    html='<div class="skin-grid">';
+    for(var i=0;i<themes.length;i++){
+      var sk=themes[i];
+      var isOwned=owned.indexOf(sk.id)>=0;
+      var isActive=activeSkin===sk.id;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopAction(\''+sk.id+'\')">'+
+        '<div class="skin-preview" style="background:'+sk.gradient+'"></div>'+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Wearing</div>':
+         isOwned?'<div class="skin-badge owned">Owned</div>':
+         '<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
+  } else if(shopTab==='frames'){
+    var frames=SKINS.filter(function(s){return s.type==='frame';});
+    html='<div class="skin-grid">';
+    for(var i=0;i<frames.length;i++){
+      var sk=frames[i];
+      var isOwned=owned.indexOf(sk.id)>=0;
+      var isActive=activeFrame===sk.id;
+      var frameBg=sk.frameColor==='rainbow'?'linear-gradient(135deg,#f093fb,#f5576c,#4facfe,#43e97b)':'none';
+      var frameBorder=sk.frameColor==='rainbow'?'transparent':sk.frameColor;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopAction(\''+sk.id+'\')">'+
+        '<div class="skin-preview" style="background:#f8f8f8">'+
+          '<div style="width:48px;height:48px;border-radius:50%;border:4px solid '+frameBorder+';background:'+(sk.frameColor==='rainbow'?frameBg:'#eee')+';display:flex;align-items:center;justify-content:center;font-size:20px">'+(m.avatarEmoji||m.initial)+'</div>'+
+        '</div>'+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Wearing</div>':
+         isOwned?'<div class="skin-badge owned">Owned</div>':
+         '<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
+  } else if(shopTab==='badges'){
+    var badges=SKINS.filter(function(s){return s.type==='badge';});
+    html='<div class="skin-grid">';
+    for(var i=0;i<badges.length;i++){
+      var sk=badges[i];
+      var isOwned=owned.indexOf(sk.id)>=0;
+      var isActive=activeBadge===sk.id;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopAction(\''+sk.id+'\')">'+
+        '<div class="skin-preview" style="background:#f8f8f8">'+
+          '<div style="font-size:36px">'+sk.badgeIcon+'</div>'+
+        '</div>'+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Wearing</div>':
+         isOwned?'<div class="skin-badge owned">Owned</div>':
+         '<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
+  } else if(shopTab==='battlepass'){
+    // Count total jobs done
+    var totalJobs=state.choreCompletions.filter(function(c){return c.memberId===mId;}).length;
+    html='<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px">Jobs completed: '+totalJobs+' 💼</div>';
+    for(var i=0;i<BATTLE_PASS_TIERS.length;i++){
+      var tier=BATTLE_PASS_TIERS[i];
+      var unlocked=totalJobs>=tier.jobs;
+      var skinAlreadyOwned=owned.indexOf(tier.skinId)>=0;
+      html+='<div class="bp-tier'+(unlocked?' unlocked':'')+'">'+
+        '<div class="bp-tier-icon">'+tier.icon+'</div>'+
+        '<div class="bp-tier-info">'+
+          '<div class="bp-tier-name">'+tier.name+'</div>'+
+          '<div class="bp-tier-req">'+tier.jobs+' jobs → '+tier.reward+'</div>'+
+        '</div>'+
+        (unlocked&&!skinAlreadyOwned?'<button class="bp-unlock" onclick="claimBpReward(\''+tier.skinId+'\')">Claim!</button>':
+         skinAlreadyOwned?'<span class="bp-unlock">✓ Got it</span>':
+         '<span class="bp-locked">'+tier.jobs+' jobs</span>')+
+      '</div>';
+    }
+  }
+
+  document.getElementById('shop-content').innerHTML=html;
+}
+
+function shopAction(skinId){
+  var mId=document.getElementById('shop-mid').value;
+  var m=state.members.find(function(x){return x.id===mId;});
+  if(!m)return;
+  var sk=getSkinById(skinId);
+  if(!sk)return;
+  var owned=m.purchasedSkins||[];
+  var isOwned=owned.indexOf(skinId)>=0;
+
+  if(isOwned){
+    // Toggle wear / remove
+    if(sk.type==='theme'){m.activeSkin=(m.activeSkin===skinId?null:skinId);}
+    else if(sk.type==='frame'){m.activeFrame=(m.activeFrame===skinId?null:skinId);}
+    else if(sk.type==='badge'){m.activeBadge=(m.activeBadge===skinId?null:skinId);}
+    save();renderShop();
+    showToast(m.activeSkin===skinId||m.activeFrame===skinId||m.activeBadge===skinId?'Wearing '+sk.name+' ✨':'Removed '+sk.name);
+  } else {
+    // Buy
+    var bal=getBalance(mId);
+    if(bal<sk.cost){showToast('Not enough points! Need '+sk.cost+' ⭐');return;}
+    if(!confirm('Buy '+sk.name+' for '+sk.cost+' points?'))return;
+    addPtsTx(mId,-sk.cost,'🛍️ Bought: '+sk.name,'redeem');
+    if(!m.purchasedSkins)m.purchasedSkins=[];
+    m.purchasedSkins.push(skinId);
+    // Auto-wear on purchase
+    if(sk.type==='theme')m.activeSkin=skinId;
+    else if(sk.type==='frame')m.activeFrame=skinId;
+    else if(sk.type==='badge')m.activeBadge=skinId;
+    save();renderShop();
+    triggerConfetti();showToast('Purchased '+sk.name+'! ✨');
+  }
+}
+
+function claimBpReward(skinId){
+  var mId=document.getElementById('shop-mid').value;
+  var m=state.members.find(function(x){return x.id===mId;});
+  if(!m)return;
+  var sk=getSkinById(skinId);
+  if(!sk)return;
+  if(!m.purchasedSkins)m.purchasedSkins=[];
+  if(m.purchasedSkins.indexOf(skinId)>=0){showToast('Already claimed!');return;}
+  m.purchasedSkins.push(skinId);
+  if(sk.type==='theme')m.activeSkin=skinId;
+  else if(sk.type==='frame')m.activeFrame=skinId;
+  else if(sk.type==='badge')m.activeBadge=skinId;
+  save();renderShop();
+  triggerConfetti();showToast('🎉 Battle Pass reward claimed: '+sk.name+'!');
+}
+
 function renderLeaderboard(){
   var members=state.members.slice().map(function(m){return{m:m,pts:getBalance(m.id)};});
   members.sort(function(a,b){return b.pts-a.pts;});
@@ -1872,7 +2283,7 @@ function renderHome(){
   var children=state.members.filter(function(m){return m.isChild;});
   if(!children.length){cl.innerHTML='';return;}
   // Desired display order
-  var ORDER=['m-amelia','m-dutic','m-harry','m-jimmy'];
+  var ORDER=['m-amelia','m-dutic','m-harry'];
   children.sort(function(a,b){
     var ai=ORDER.indexOf(a.id);var bi=ORDER.indexOf(b.id);
     if(ai<0)ai=99;if(bi<0)bi=99;return ai-bi;
@@ -2232,7 +2643,7 @@ function renderChores(){
   var ds=choresDayStr;
   var content=document.getElementById('chores-day-content');
   var children=state.members.filter(function(m){return m.isChild;});
-  var ORDER=['m-amelia','m-dutic','m-harry','m-jimmy'];
+  var ORDER=['m-amelia','m-dutic','m-harry'];
   children.sort(function(a,b){var ai=ORDER.indexOf(a.id);var bi=ORDER.indexOf(b.id);if(ai<0)ai=99;if(bi<0)bi=99;return ai-bi;});
 
   var html='';
@@ -3331,8 +3742,9 @@ function renderKidsTab(){
     const doneCount=todayChores.filter(c=>isChoreComplete(c.id,ch.id,today)).length;
     const pct=todayChores.length?Math.round((doneCount/todayChores.length)*100):100;
     const xpPct=next?Math.round(((bal-getLevel(bal).min)/(next.min-getLevel(bal).min))*100):100;
+    var kcGrad=ch.activeSkin?((function(){var sk=getSkinById(ch.activeSkin);return sk?sk.gradient:'linear-gradient(135deg,'+ch.color+','+hexAlpha(ch.color,0.8)+')';})()):'linear-gradient(135deg,'+ch.color+','+hexAlpha(ch.color,0.8)+')';
     return`<div class="kid-card" onclick="openKidModal('${ch.id}')">
-      <div class="kid-card-hdr" style="background:linear-gradient(135deg,${ch.color},${hexAlpha(ch.color,0.8)})">
+      <div class="kid-card-hdr" style="background:${kcGrad}">
         ${ch.avatarEmoji?'<div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:52px;height:52px;font-size:22px">${ch.initial}</div>`}
         <div style="flex:1">
           <div style="font-family:'Fredoka One',cursive;font-size:22px">${ch.name}</div>
@@ -3401,14 +3813,15 @@ function openKidModal(mId){
 
   document.getElementById('kid-modal-content').innerHTML=`
     <!-- Header -->
-    <div class="kid-modal-hdr" style="background:linear-gradient(135deg,${ch.color},${hexAlpha(ch.color,0.73)})">
+    <div class="kid-modal-hdr" style="background:${ch.activeSkin&&getSkinById(ch.activeSkin)?getSkinById(ch.activeSkin).gradient:'linear-gradient(135deg,'+ch.color+','+hexAlpha(ch.color,0.73)+')'}">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+        <button class="btn btn-outline btn-sm" style="position:absolute;top:12px;right:12px;font-size:14px;padding:5px 10px" onclick="openShopModal('${ch.id}')">🛍️ Shop</button>
         <div onclick="openAvatarPickerGated('${ch.id}')" style="cursor:pointer;position:relative">
-          ${ch.avatarEmoji?'<div style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">'+ch.avatarEmoji+'</div>':`<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:58px;height:58px;font-size:26px">${ch.initial}</div>`}
+          ${(function(){var fr=ch.activeFrame&&getSkinById(ch.activeFrame);var border=fr?(fr.frameColor==='rainbow'?'4px solid transparent':'4px solid '+fr.frameColor):'none';var outline=fr&&fr.frameColor==='rainbow'?'2px solid #f093fb':'none';return ch.avatarEmoji?'<div style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0;border:'+border+';outline:'+outline+'">'+ch.avatarEmoji+'</div>':'<div class="m-avatar" style="background:rgba(255,255,255,0.25);width:58px;height:58px;font-size:26px;border:'+border+'">'+ch.initial+'</div>';})()}
           <div style="position:absolute;bottom:-2px;right:-2px;background:rgba(255,255,255,0.9);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px">✏️</div>
         </div>
         <div>
-          <div style="font-family:'Fredoka One',cursive;font-size:28px">${ch.name}</div>
+          <div style="font-family:'Fredoka One',cursive;font-size:28px">${ch.name}${ch.activeBadge&&getSkinById(ch.activeBadge)?' <span style="font-size:20px">'+getSkinById(ch.activeBadge).badgeIcon+'</span>':''}</div>
           <div style="font-size:14px;opacity:0.85">${lv.icon} ${lv.name}${streak>=3?` &nbsp;🔥 ${streak}-day streak`:''}</div>
         </div>
       </div>
@@ -3607,20 +4020,20 @@ function playAlarmAudio(type,preview){
     for(var ci=0;ci<(preview?1:4);ci++){
       for(var ni=0;ni<notes.length;ni++){tone(notes[ni],t+ci*1.2+ni*0.18,0.4,'sine',0.35);}
     }
-    if(!preview)setTimeout(stop,12000);
+    if(!preview)setTimeout(function(){stop();dismissAlarm();},12000);
   } else if(type==='gentle'){
     var gNotes=[330,392,494,523,659];
     for(var gi=0;gi<(preview?1:5);gi++){
       for(var gni=0;gni<gNotes.length;gni++){tone(gNotes[gni],t+gi*2+gni*0.3,0.5,'sine',0.25);}
     }
-    if(!preview)setTimeout(stop,12000);
+    if(!preview)setTimeout(function(){stop();dismissAlarm();},12000);
   } else if(type==='bell'){
     for(var bi=0;bi<(preview?1:8);bi++){
       tone(987,t+bi*1.2,0.05,'sine',0.5);
       tone(987,t+bi*1.2+0.02,0.8,'sine',0.35);
       tone(1318,t+bi*1.2,0.6,'sine',0.15);
     }
-    if(!preview)setTimeout(stop,12000);
+    if(!preview)setTimeout(function(){stop();dismissAlarm();},12000);
   } else if(type==='fanfare'){
     var fNotes=[523,659,784,659,784,1047];
     var fDurs=[0.15,0.15,0.15,0.15,0.15,0.5];
@@ -3633,25 +4046,25 @@ function playAlarmAudio(type,preview){
     }
   } else if(type==='beep'){
     for(var bei=0;bei<(preview?3:30);bei++){tone(1200,t+bei*0.4,0.08,'square',0.25);}
-    if(!preview)setTimeout(stop,12000);
+    if(!preview)setTimeout(function(){stop();dismissAlarm();},12000);
   } else if(type==='meds'){
     try{ctx.close();}catch(e){}
     alarmAudioStop=null;
     var maud=document.getElementById('meds-alarm-audio');
-    if(maud){maud.currentTime=0;maud.loop=!preview;maud.play();
+    if(maud){maud.currentTime=0;maud.loop=false;maud.play();
       alarmAudioStop=function(){maud.pause();maud.currentTime=0;};
       if(preview)setTimeout(function(){maud.pause();maud.currentTime=0;},10000);
-      else setTimeout(function(){maud.pause();maud.currentTime=0;},60000);
+      else{maud.onended=function(){maud.onended=null;dismissAlarm();};}
     }
     return;
   } else if(type==='custom'){
     try{ctx.close();}catch(e){}
     alarmAudioStop=null;
     var aud=document.getElementById('custom-alarm-audio');
-    if(aud){aud.currentTime=0;aud.loop=!preview;aud.play();
+    if(aud){aud.currentTime=0;aud.loop=false;aud.play();
       alarmAudioStop=function(){aud.pause();aud.currentTime=0;};
       if(preview)setTimeout(function(){aud.pause();aud.currentTime=0;},10000);
-      else setTimeout(function(){aud.pause();aud.currentTime=0;},60000);
+      else{aud.onended=function(){aud.onended=null;dismissAlarm();};}
     }
     return;
   }
@@ -3786,8 +4199,14 @@ function fireAlarm(al){
 }
 
 function dismissAlarm(){
+  if(!firingAlarmId&&document.getElementById('alarm-fire-overlay').style.display==='none')return;
   if(alarmAudioStop){try{alarmAudioStop();}catch(e){}}
   alarmAudioStop=null;
+  // Clear any MP3 onended callbacks
+  var maud=document.getElementById('meds-alarm-audio');
+  var aud=document.getElementById('custom-alarm-audio');
+  if(maud){maud.onended=null;try{maud.pause();maud.currentTime=0;}catch(e){}}
+  if(aud){aud.onended=null;try{aud.pause();aud.currentTime=0;}catch(e){}}
   firingAlarmId=null;
   document.getElementById('alarm-fire-overlay').style.display='none';
   document.getElementById('alarm-fire-overlay').classList.remove('ringing');
@@ -3855,7 +4274,7 @@ function renderAlarms(){
   }).join('');
 }
 // ════════════════════════════════════════
-// ROUTINE TAB (Harry & Jimmy)
+// ROUTINE TAB (Harry)
 // ════════════════════════════════════════
 // ════════════════════════════════════════
 // KID VIEW (KIOSK)
@@ -4114,9 +4533,9 @@ function openKidAlarmModal(ownerId){
 }
 
 // ════════════════════════════════════════
-// ROUTINE TAB (Harry & Jimmy)
+// ROUTINE TAB (Harry)
 // ════════════════════════════════════════
-var ROUTINE_KIDS=['m-harry','m-jimmy'];
+var ROUTINE_KIDS=['m-harry'];
 var routineFiredToday={};
 
 function getRoutineTasks(memberId,period){
