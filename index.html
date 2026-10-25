@@ -854,7 +854,6 @@ create policy "public_access" on app_state
       <div class="sec-title">⭐ Points</div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm" onclick="openLeaderboardModal()" title="Leaderboard">🏆</button>
-        <button class="btn btn-outline btn-sm" onclick="openShopModal(null)" title="Shop">🛍️</button>
         <button class="btn btn-primary btn-sm" onclick="openAddPtsModalGated()">+ Add</button>
       </div>
     </div>
@@ -2039,9 +2038,10 @@ function renderLeaderboardModal(){
 // ════════════════════════════════════════
 var shopTab='themes';
 
+var shopLockedKid=null;
 function openShopModal(mId){
-  // If no mId specified, pick first child
   var children=state.members.filter(function(m){return m.isChild;});
+  shopLockedKid=mId||null;
   if(!mId&&children.length)mId=children[0].id;
   if(!mId){showToast('No children set up');return;}
   document.getElementById('shop-mid').value=mId;
@@ -2072,7 +2072,7 @@ function renderShop(){
   var balEl=document.getElementById('shop-bal-num');
   if(balEl)balEl.innerHTML=bal;
   var whoEl=document.getElementById('shop-who-row');
-  if(whoEl){
+  if(whoEl){if(shopLockedKid){whoEl.style.display='none';}else{whoEl.style.display='flex';}
     var children=state.members.filter(function(x){return x.isChild;});
     whoEl.innerHTML=children.map(function(kid){
       var isSel=kid.id===mId;
