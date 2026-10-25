@@ -432,6 +432,17 @@ body.kiosk-mode #main{padding-bottom:20px}
 .bp-unlock{background:var(--green);color:#fff;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:800;flex-shrink:0}
 .bp-locked{background:#eee;color:#aaa;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:800;flex-shrink:0}
 
+
+/* ── AVATAR COMPOSITE ── */
+.av-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.av-hat{position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:1em;line-height:1;z-index:4;pointer-events:none}
+.av-acc{position:absolute;bottom:14%;left:50%;transform:translateX(-50%);font-size:0.6em;line-height:1;z-index:5;pointer-events:none}
+.av-pet{position:absolute;bottom:-4px;right:-14px;font-size:0.65em;line-height:1;z-index:4;pointer-events:none}
+/* ── AVATAR PICKER KID ── */
+.av-pick-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:14px}
+.av-pick-btn{width:48px;height:48px;border-radius:50%;border:3px solid transparent;background:#f8f8f8;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color 0.15s;-webkit-tap-highlight-color:transparent}
+.av-pick-btn.sel{border-color:var(--primary)}
+
 /* ── EXTRA CHORES ── */
 .extra-section{margin:10px 0 0;padding:12px 16px;background:linear-gradient(135deg,#FFF8E7,#FFF3CD);border-radius:16px;border:2px dashed #FFD93D}
 .extra-section-title{font-family:'Fredoka One',cursive;font-size:15px;color:#F9A825;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -880,6 +891,21 @@ create policy "public_access" on app_state
 <div id="toast"></div>
 
 <!-- LEADERBOARD MODAL -->
+
+<div class="modal-overlay" id="modal-kv-avatar">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎨 Change Your Avatar</div>
+    <input type="hidden" id="kv-avatar-mid">
+    <div class="av-pick-grid" id="kv-avatar-grid"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <input class="fi" id="kv-avatar-custom" maxlength="2" placeholder="Or type any emoji…" style="flex:1">
+      <button class="btn btn-primary" onclick="setKvAvatar(document.getElementById('kv-avatar-custom').value.trim())">✓</button>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="closeModal('modal-kv-avatar')" style="width:100%;justify-content:center;margin-top:8px">Cancel</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-leaderboard">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -907,7 +933,10 @@ create policy "public_access" on app_state
       <div class="shop-bal-lbl">Points to spend</div>
     </div>
     <div class="shop-tabs">
-      <button class="shop-tab-btn active" onclick="setShopTab('themes',this)">🎨 Themes</button>
+      <button class="shop-tab-btn active" onclick="setShopTab('hats',this)">🎩 Hats</button>
+      <button class="shop-tab-btn" onclick="setShopTab('pets',this)">🐱 Pets</button>
+      <button class="shop-tab-btn" onclick="setShopTab('accessories',this)">🕶️ Gear</button>
+      <button class="shop-tab-btn" onclick="setShopTab('themes',this)">🎨 Themes</button>
       <button class="shop-tab-btn" onclick="setShopTab('frames',this)">✨ Frames</button>
       <button class="shop-tab-btn" onclick="setShopTab('badges',this)">🏅 Badges</button>
       <button class="shop-tab-btn" onclick="setShopTab('battlepass',this)">🎯 Pass</button>
@@ -1894,7 +1923,29 @@ var SKINS=[
   {id:'badge-champ',  name:'🏆 Champion',     cost:80,  type:'badge', badgeIcon:'🏆', desc:'Champion badge'},
   {id:'badge-legend', name:'👑 Legend',        cost:150, type:'badge', badgeIcon:'👑', desc:'Legendary status'},
   {id:'badge-fire',   name:'🔥 On Fire',       cost:60,  type:'badge', badgeIcon:'🔥', desc:'On a hot streak'},
-  {id:'badge-boss',   name:'😎 Boss Mode',     cost:100, type:'badge', badgeIcon:'😎', desc:'Ultimate boss'}
+  {id:'badge-boss',   name:'😎 Boss Mode',     cost:100, type:'badge', badgeIcon:'😎', desc:'Ultimate boss'},
+  // HATS
+  {id:'hat-tophat',  name:'🎩 Top Hat',    cost:25,  type:'hat', hatIcon:'🎩', desc:'Fancy!'},
+  {id:'hat-cap',     name:'🧢 Cap',        cost:15,  type:'hat', hatIcon:'🧢', desc:'Sporty'},
+  {id:'hat-sunhat',  name:'👒 Sun Hat',    cost:15,  type:'hat', hatIcon:'👒', desc:'Sunny vibes'},
+  {id:'hat-grad',    name:'🎓 Grad Cap',   cost:30,  type:'hat', hatIcon:'🎓', desc:'Smart!'},
+  {id:'hat-crown',   name:'👑 Crown',      cost:60,  type:'hat', hatIcon:'👑', desc:'Royal!'},
+  {id:'hat-cowboy',  name:'🤠 Cowboy',     cost:20,  type:'hat', hatIcon:'🤠', desc:'Yeehaw!'},
+  {id:'hat-wizard',  name:'🧙 Wizard',     cost:40,  type:'hat', hatIcon:'🧙', desc:'Magic!'},
+  {id:'hat-santa',   name:'🎅 Santa',      cost:20,  type:'hat', hatIcon:'🎅', desc:'Ho ho ho!'},
+  // PETS
+  {id:'pet-cat',     name:'🐱 Cat',        cost:35,  type:'pet', petIcon:'🐱', desc:'Meow!'},
+  {id:'pet-dog',     name:'🐶 Dog',        cost:35,  type:'pet', petIcon:'🐶', desc:'Woof!'},
+  {id:'pet-frog',    name:'🐸 Frog',       cost:25,  type:'pet', petIcon:'🐸', desc:'Ribbit!'},
+  {id:'pet-penguin', name:'🐧 Penguin',    cost:30,  type:'pet', petIcon:'🐧', desc:'Cool!'},
+  {id:'pet-dragon',  name:'🐉 Dragon',     cost:100, type:'pet', petIcon:'🐉', desc:'Legendary!'},
+  {id:'pet-unicorn', name:'🦄 Unicorn',    cost:80,  type:'pet', petIcon:'🦄', desc:'Magical!'},
+  {id:'pet-butterfly',name:'🦋 Butterfly', cost:40,  type:'pet', petIcon:'🦋', desc:'Beautiful!'},
+  // ACCESSORIES
+  {id:'acc-shades',  name:'🕶️ Shades',    cost:20,  type:'accessory', accIcon:'🕶️', desc:'Too cool'},
+  {id:'acc-glasses', name:'👓 Glasses',    cost:15,  type:'accessory', accIcon:'👓', desc:'Smart look'},
+  {id:'acc-stareyes',name:'🤩 Star Eyes',  cost:30,  type:'accessory', accIcon:'🤩', desc:'Starstruck!'},
+  {id:'acc-angry',   name:'😤 Grr Face',   cost:20,  type:'accessory', accIcon:'😤', desc:'On fire!'},
 ];
 
 var BATTLE_PASS_TIERS=[
@@ -1909,6 +1960,29 @@ var BATTLE_PASS_TIERS=[
   {jobs:150,icon:'🌈', name:'Rainbow Star',  reward:'Rainbow Theme',    skinId:'skin-rainbow'},
   {jobs:200,icon:'👑', name:'Legend',         reward:'Legend Badge',     skinId:'badge-legend'},
 ];
+
+
+function buildAvatarComposite(ch,circleSize,fontSize){
+  circleSize=circleSize||52;fontSize=fontSize||Math.round(circleSize*0.52);
+  var hatSk=ch.activeHat?getSkinById(ch.activeHat):null;
+  var petSk=ch.activePet?getSkinById(ch.activePet):null;
+  var accSk=ch.activeAccessory?getSkinById(ch.activeAccessory):null;
+  var fr=ch.activeFrame?getSkinById(ch.activeFrame):null;
+  var border=fr?(fr.frameColor==='rainbow'?'3px solid transparent':'3px solid '+fr.frameColor):'none';
+  var boxShadow=fr&&fr.frameColor==='rainbow'?'0 0 0 3px #f093fb,0 0 0 5px #4facfe':'none';
+  var base=ch.avatarEmoji?
+    '<div style="width:'+circleSize+'px;height:'+circleSize+'px;border-radius:50%;background:'+ch.color+';display:flex;align-items:center;justify-content:center;font-size:'+fontSize+'px;border:'+border+';box-shadow:'+boxShadow+';flex-shrink:0">'+ch.avatarEmoji+'</div>':
+    '<div style="width:'+circleSize+'px;height:'+circleSize+'px;border-radius:50%;background:'+ch.color+';display:flex;align-items:center;justify-content:center;font-size:'+Math.round(fontSize*0.85)+'px;font-weight:900;color:#fff;border:'+border+';box-shadow:'+boxShadow+';flex-shrink:0">'+ch.initial+'</div>';
+  var hatHtml=hatSk?'<div class="av-hat" style="font-size:'+Math.round(circleSize*0.45)+'px">'+hatSk.hatIcon+'</div>':'';
+  var petHtml=petSk?'<div class="av-pet" style="font-size:'+Math.round(circleSize*0.45)+'px">'+petSk.petIcon+'</div>':'';
+  var accHtml=accSk?'<div class="av-acc" style="font-size:'+Math.round(circleSize*0.38)+'px">'+accSk.accIcon+'</div>':'';
+  var hasOverlay=hatHtml||petHtml||accHtml;
+  if(!hasOverlay)return base;
+  var topPad=hatSk?Math.round(circleSize*0.28)+'px':'0px';
+  return '<div class="av-wrap" style="width:'+(circleSize+(petSk?Math.round(circleSize*0.42):0))+'px;height:'+(circleSize+(hatSk?Math.round(circleSize*0.28):0))+'px;padding-top:'+topPad+'">'+
+    base+hatHtml+petHtml+accHtml+
+  '</div>';
+}
 
 function getSkinById(id){
   for(var i=0;i<SKINS.length;i++){if(SKINS[i].id===id)return SKINS[i];}
@@ -2036,7 +2110,7 @@ function renderLeaderboardModal(){
 // ════════════════════════════════════════
 // SHOP / BATTLE PASS
 // ════════════════════════════════════════
-var shopTab='themes';
+var shopTab='hats';
 
 var shopLockedKid=null;
 function openShopModal(mId){
@@ -2045,7 +2119,7 @@ function openShopModal(mId){
   if(!mId&&children.length)mId=children[0].id;
   if(!mId){showToast('No children set up');return;}
   document.getElementById('shop-mid').value=mId;
-  shopTab='themes';
+  shopTab='hats';
   var btns=document.querySelectorAll('.shop-tab-btn');
   for(var i=0;i<btns.length;i++){btns[i].classList.remove('active');if(i===0)btns[i].classList.add('active');}
   renderShop();
@@ -2088,9 +2162,54 @@ function renderShop(){
   var activeFrame=m.activeFrame||null;
   var activeBadge=m.activeBadge||null;
 
+  var activeHat=m.activeHat||null;
+  var activePet=m.activePet||null;
+  var activeAccessory=m.activeAccessory||null;
   var html='';
 
-  if(shopTab==='themes'){
+  if(shopTab==='hats'){
+    var hats=SKINS.filter(function(s){return s.type==='hat';});
+    html='<div class="skin-grid">';
+    for(var i=0;i<hats.length;i++){
+      var sk=hats[i];
+      var isOwned=owned.indexOf(sk.id)>=0;
+      var isActive=activeHat===sk.id;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopAction(\''+sk.id+'\')" style="'+(isActive?'border-color:'+m.color:'')+'">'+
+        '<div class="skin-preview" style="background:#f8f9fa;font-size:36px">'+sk.hatIcon+'</div>'+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Wearing</div>':isOwned?'<div class="skin-badge owned">Owned</div>':'<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
+  } else if(shopTab==='pets'){
+    var pets=SKINS.filter(function(s){return s.type==='pet';});
+    html='<div class="skin-grid">';
+    for(var i=0;i<pets.length;i++){
+      var sk=pets[i];
+      var isOwned=owned.indexOf(sk.id)>=0;
+      var isActive=activePet===sk.id;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopAction(\''+sk.id+'\')" style="'+(isActive?'border-color:'+m.color:'')+'">'+
+        '<div class="skin-preview" style="background:#f8f9fa;font-size:36px">'+sk.petIcon+'</div>'+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Following</div>':isOwned?'<div class="skin-badge owned">Owned</div>':'<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
+  } else if(shopTab==='accessories'){
+    var accs=SKINS.filter(function(s){return s.type==='accessory';});
+    html='<div class="skin-grid">';
+    for(var i=0;i<accs.length;i++){
+      var sk=accs[i];
+      var isOwned=owned.indexOf(sk.id)>=0;
+      var isActive=activeAccessory===sk.id;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopAction(\''+sk.id+'\')" style="'+(isActive?'border-color:'+m.color:'')+'">'+
+        '<div class="skin-preview" style="background:#f8f9fa;font-size:36px">'+sk.accIcon+'</div>'+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Wearing</div>':isOwned?'<div class="skin-badge owned">Owned</div>':'<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
+  } else if(shopTab==='themes'){
     var themes=SKINS.filter(function(s){return s.type==='theme';});
     html='<div class="skin-grid">';
     for(var i=0;i<themes.length;i++){
@@ -2182,6 +2301,9 @@ function shopAction(skinId){
     if(sk.type==='theme'){m.activeSkin=(m.activeSkin===skinId?null:skinId);}
     else if(sk.type==='frame'){m.activeFrame=(m.activeFrame===skinId?null:skinId);}
     else if(sk.type==='badge'){m.activeBadge=(m.activeBadge===skinId?null:skinId);}
+    else if(sk.type==='hat'){m.activeHat=(m.activeHat===skinId?null:skinId);}
+    else if(sk.type==='pet'){m.activePet=(m.activePet===skinId?null:skinId);}
+    else if(sk.type==='accessory'){m.activeAccessory=(m.activeAccessory===skinId?null:skinId);}
     save();renderShop();
     showToast(m.activeSkin===skinId||m.activeFrame===skinId||m.activeBadge===skinId?'Wearing '+sk.name+' ✨':'Removed '+sk.name);
   } else {
@@ -2196,6 +2318,9 @@ function shopAction(skinId){
     if(sk.type==='theme')m.activeSkin=skinId;
     else if(sk.type==='frame')m.activeFrame=skinId;
     else if(sk.type==='badge')m.activeBadge=skinId;
+    else if(sk.type==='hat')m.activeHat=skinId;
+    else if(sk.type==='pet')m.activePet=skinId;
+    else if(sk.type==='accessory')m.activeAccessory=skinId;
     save();renderShop();
     triggerConfetti();showToast('Purchased '+sk.name+'! ✨');
   }
@@ -2213,6 +2338,9 @@ function claimBpReward(skinId){
   if(sk.type==='theme')m.activeSkin=skinId;
   else if(sk.type==='frame')m.activeFrame=skinId;
   else if(sk.type==='badge')m.activeBadge=skinId;
+  else if(sk.type==='hat')m.activeHat=skinId;
+  else if(sk.type==='pet')m.activePet=skinId;
+  else if(sk.type==='accessory')m.activeAccessory=skinId;
   save();renderShop();
   triggerConfetti();showToast('🎉 Battle Pass reward claimed: '+sk.name+'!');
 }
@@ -3944,6 +4072,27 @@ var ALARM_SOUND_ICONS={digital:'⏰',chime:'🔔',gentle:'🌅',bell:'🔕',fanf
 function openChoreModalGated(presetMemberId){openWithPin(function(){openChoreModal(null,presetMemberId);});}
 function openExtraChoreGated(){openWithPin(function(){openChoreModal();});}
 function openAddPtsModalGated(){openWithPin(openAddPtsModal);}
+
+var KV_EMOJIS=['🐶','🐱','🦁','🐻','🐼','🦊','🐨','🐯','🐸','🦋','🌈','⚡','🌟','🎮','🎨','🎵','🏆','🚀','🌺','🦄','🤖','👻','🎃','🧙','🦸','🐉','🐧','🦄'];
+function openKvAvatarPicker(mId){
+  document.getElementById('kv-avatar-mid').value=mId;
+  document.getElementById('kv-avatar-custom').value='';
+  var m=state.members.find(function(x){return x.id===mId;});
+  var cur=m&&m.avatarEmoji||'';
+  document.getElementById('kv-avatar-grid').innerHTML=KV_EMOJIS.map(function(e){
+    return '<button class="av-pick-btn'+(e===cur?' sel':'')+'" onclick="setKvAvatar(\''+e+'\')">'+e+'</button>';
+  }).join('');
+  openModal('modal-kv-avatar');
+}
+function setKvAvatar(emoji){
+  if(!emoji)return;
+  var mId=document.getElementById('kv-avatar-mid').value;
+  var m=state.members.find(function(x){return x.id===mId;});
+  if(!m)return;
+  m.avatarEmoji=emoji;
+  save();closeModal('modal-kv-avatar');renderKidView();showToast('Avatar updated! '+emoji);
+}
+
 function openGivePtsKid(mId){openWithPin(function(){buildMSelector('pts-members',[mId],true);document.getElementById('pts-amount').value=5;document.getElementById('pts-reason').value='';openModal('modal-pts');});}
 function openAvatarPickerGated(mId){openWithPin(function(){openAvatarPicker(mId);});}
 
@@ -4395,9 +4544,9 @@ function renderKidView(){
   var ch=kids.find(function(m){return m.id===saved;})||kids[0];
 
   switcher.innerHTML=kids.map(function(k){
-    var avatarInner=k.avatarEmoji||k.initial;
+    var avatarInner=buildAvatarComposite(k,40,20);
     return '<button class="kv-switch-btn'+(k.id===ch.id?' active':'')+'" onclick="selectKidView(\''+k.id+'\')">'+
-      '<div class="kv-switch-avatar" style="background:'+k.color+'">'+avatarInner+'</div>'+
+      '<div class="kv-switch-avatar" style="background:transparent;overflow:visible">'+avatarInner+'</div>'+
       '<div class="kv-switch-name">'+k.name+'</div>'+
     '</button>';
   }).join('');
@@ -4407,7 +4556,7 @@ function renderKidView(){
   var tomorrow=dStr(tomorrowD);
   var bal=getBalance(ch.id);
 
-  var avatarHtml=ch.avatarEmoji?ch.avatarEmoji:ch.initial;
+  var avatarHtml=buildAvatarComposite(ch,46,22);
 
   // Daily chores
   var dailyChores=state.chores.filter(function(c){return !c.isExtra&&(c.memberIds||[]).indexOf(ch.id)>=0&&c.date===today;});
@@ -4445,8 +4594,9 @@ function renderKidView(){
 
   main.innerHTML=
     '<div class="kv-header-compact" style="background:linear-gradient(135deg,'+ch.color+','+hexAlpha(ch.color,0.8)+'">'+
-      '<div class="kv-header-avatar">'+avatarHtml+'</div>'+
+      '<div style="flex-shrink:0;margin-top:'+(ch.activeHat?'8px':'0')+'">'+avatarHtml+'</div>'+
       '<div style="flex:1;min-width:0"><div class="kv-header-name">'+ch.name+'</div></div>'+
+      '<button class="kv-pin-btn-sm" style="background:rgba(255,255,255,0.25)" onclick="openKvAvatarPicker(\''+ch.id+'\')" title="Change Avatar">🎨</button>'+
       '<div class="kv-header-points">⭐ '+bal+'</div>'+
       '<button class="kv-pin-btn-sm" style="background:rgba(255,255,255,0.25)" onclick="openShopModal(\''+ch.id+'\')" title="Shop">🛍️</button>'+
       '<button class="kv-pin-btn-sm" style="background:rgba(255,255,255,0.25)" onclick="openGivePtsKid(\''+ch.id+'\')" title="Give Points">⭐+</button>'+
