@@ -2793,7 +2793,7 @@ function renderChores(){
     html='<div class="card"><div class="empty-state"><div class="emoji">👶</div><p>No children set up yet</p></div></div>';
   } else {
     var quadCards=children.map(function(ch){
-      var chores=state.chores.filter(function(c){return !c.noPoints&&!c.isExtra&&(c.memberIds||[]).indexOf(ch.id)>=0&&c.date===ds;});
+      var chores=state.chores.filter(function(c){return !c.isExtra&&(c.memberIds||[]).indexOf(ch.id)>=0&&c.date===ds;});
       var hasAny=chores.length>0;
       var allDone=hasAny&&chores.every(function(c){return isChoreComplete(c.id,ch.id,ds);});
       var done=chores.filter(function(c){return isChoreComplete(c.id,ch.id,ds);}).length;
@@ -2876,7 +2876,7 @@ function showBlockedModal(title,body,color){
 function revertExtraJobsIfDailyIncomplete(mId,ds){
   // If this member's daily (non-extra, points-earning) chores are no longer all complete,
   // strip them of any extra jobs they claimed that day — those go back into the pool.
-  var dailyChores=state.chores.filter(function(c){return !c.isExtra&&!c.noPoints&&(c.memberIds||[]).indexOf(mId)>=0&&c.date===ds;});
+  var dailyChores=state.chores.filter(function(c){return !c.isExtra&&(c.memberIds||[]).indexOf(mId)>=0&&c.date===ds;});
   if(!dailyChores.length)return; // no daily jobs assigned, nothing to enforce
   var allDone=dailyChores.every(function(c){return isChoreComplete(c.id,mId,ds);});
   if(allDone)return;
@@ -2902,7 +2902,7 @@ function claimExtra(cId,mId,ds,el){
   if(!chore)return;
   if(!done){
     // Check daily jobs are all done first
-    var dailyChores=state.chores.filter(function(c){return !c.isExtra&&!c.noPoints&&(c.memberIds||[]).indexOf(mId)>=0&&c.date===ds;});
+    var dailyChores=state.chores.filter(function(c){return !c.isExtra&&(c.memberIds||[]).indexOf(mId)>=0&&c.date===ds;});
     var allDone=dailyChores.every(function(c){return isChoreComplete(c.id,mId,ds);});
     if(dailyChores.length&&!allDone){
       var member=state.members.find(function(m){return m.id===mId;});
