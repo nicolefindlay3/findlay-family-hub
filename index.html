@@ -3914,6 +3914,7 @@ function showStab(tab,btn){
   document.querySelectorAll('.stab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   ['stab-gcal','stab-members','stab-alarms','stab-db'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('stab-'+tab).style.display='block';
+  if(tab==='alarms')renderAlarms();
 }
 function saveDbConnection(){
   const url=document.getElementById('db-url-edit').value.trim().replace(/\/$/,'');
@@ -4040,8 +4041,18 @@ function getSelMembers(cId){return Array.from(document.querySelectorAll(`#${cId}
 // ════════════════════════════════════════
 // MODALS
 // ════════════════════════════════════════
-function openModal(id){document.getElementById(id).classList.add('open')}
-function closeModal(id){document.getElementById(id).classList.remove('open')}
+function openModal(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  // iOS old WebKit fix: scroll to top so fixed positioning works, then force repaint
+  try{window.scrollTo(0,0);}catch(e){}
+  el.style.webkitTransform='translateZ(0)';
+  el.style.transform='translateZ(0)';
+  el.classList.add('open');
+  // Second paint flush — forces old Safari to bring it to front
+  setTimeout(function(){el.style.webkitTransform='';el.style.transform='';},50);
+}
+function closeModal(id){var el=document.getElementById(id);if(el)el.classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 
 // ════════════════════════════════════════
