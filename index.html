@@ -975,6 +975,7 @@ create policy "public_access" on app_state
       <button class="shop-tab-btn" onclick="setShopTab('frames',this)">✨ Frames</button>
       <button class="shop-tab-btn" onclick="setShopTab('badges',this)">🏅 Badges</button>
       <button class="shop-tab-btn" onclick="setShopTab('battlepass',this)">🎯 Pass</button>
+      <button class="shop-tab-btn" onclick="setShopTab('specials',this)" style="background:linear-gradient(135deg,#FFD700,#FF6B35);border-color:#FF6B35;color:#fff">🌟 Specials</button>
     </div>
     <input type="hidden" id="shop-mid">
     <div id="shop-content" style="max-height:55vh;overflow-y:auto"></div>
@@ -1981,7 +1982,63 @@ var SKINS=[
   {id:'acc-glasses', name:'👓 Glasses',    cost:15,  type:'accessory', accIcon:'👓', desc:'Smart look'},
   {id:'acc-stareyes',name:'🤩 Star Eyes',  cost:30,  type:'accessory', accIcon:'🤩', desc:'Starstruck!'},
   {id:'acc-angry',   name:'😤 Grr Face',   cost:20,  type:'accessory', accIcon:'😤', desc:'On fire!'},
+  {id:'acc-hearts',  name:'😍 Heart Eyes',  cost:25,  type:'accessory', accIcon:'😍', desc:'Love it!'},
+  {id:'acc-cool',    name:'😎 Cool Face',   cost:25,  type:'accessory', accIcon:'😎', desc:'So cool'},
+  {id:'acc-party',   name:'🥳 Party Face',  cost:30,  type:'accessory', accIcon:'🥳', desc:'Let's go!'},
+  {id:'acc-clown',   name:'🤡 Clown Nose',  cost:20,  type:'accessory', accIcon:'🤡', desc:'Honk honk'},
+  {id:'acc-halo',    name:'😇 Halo',        cost:35,  type:'accessory', accIcon:'😇', desc:'Angel vibes'},
+  {id:'acc-devil',   name:'😈 Devil Horns', cost:35,  type:'accessory', accIcon:'😈', desc:'Mischievous'},
+  // MORE PETS
+  {id:'pet-alien',   name:'👽 Alien',       cost:50,  type:'pet', petIcon:'👽', desc:'From space!'},
+  {id:'pet-robot',   name:'🤖 Robot',       cost:45,  type:'pet', petIcon:'🤖', desc:'Beep boop!'},
+  {id:'pet-shark',   name:'🦈 Shark',       cost:60,  type:'pet', petIcon:'🦈', desc:'Dun dun dun!'},
+  {id:'pet-fox',     name:'🦊 Fox',         cost:35,  type:'pet', petIcon:'🦊', desc:'Sly & smart'},
+  {id:'pet-bear',    name:'🐻 Bear',        cost:30,  type:'pet', petIcon:'🐻', desc:'Cuddly!'},
+  {id:'pet-sloth',   name:'🦥 Sloth',       cost:25,  type:'pet', petIcon:'🦥', desc:'Just chilling'},
+  {id:'pet-octopus', name:'🐙 Octopus',     cost:40,  type:'pet', petIcon:'🐙', desc:'Eight hugs!'},
+  // MORE HATS
+  {id:'hat-party',   name:'🎉 Party Hat',   cost:20,  type:'hat', hatIcon:'🎉', desc:'Celebrate!'},
+  {id:'hat-chef',    name:'👨‍🍳 Chef Hat',    cost:25,  type:'hat', hatIcon:'👨‍🍳', desc:'Master chef'},
+  {id:'hat-space',   name:'👨‍🚀 Space Helm',  cost:50,  type:'hat', hatIcon:'👨‍🚀', desc:'To infinity!'},
+  {id:'hat-police',  name:'👮 Police Cap',  cost:30,  type:'hat', hatIcon:'👮', desc:'Officer on duty'},
+  {id:'hat-pirate',  name:'🏴‍☠️ Pirate',     cost:35,  type:'hat', hatIcon:'🏴‍☠️', desc:'Arrr!'},
+  // MORE THEMES
+  {id:'skin-sunset', name:'🌅 Sunset',      cost:45,  type:'theme', gradient:'linear-gradient(135deg,#FF6B6B,#FFA500,#FFD700)', desc:'Golden hour'},
+  {id:'skin-arctic', name:'❄️ Arctic',       cost:35,  type:'theme', gradient:'linear-gradient(135deg,#74B9FF,#DFE6E9,#B2BEC3)', desc:'Ice cold'},
+  {id:'skin-jungle', name:'🌴 Jungle',       cost:40,  type:'theme', gradient:'linear-gradient(135deg,#2ECC40,#228B22,#8B4513)', desc:'Wild & free'},
+  // MORE FRAMES
+  {id:'frame-gold',  name:'💛 Gold',         cost:55,  type:'frame', frameColor:'#FFD700', desc:'Golden frame'},
+  {id:'frame-ice',   name:'💙 Ice',          cost:30,  type:'frame', frameColor:'#74B9FF', desc:'Cool blue'},
 ];
+
+// ── SPECIAL EDITION ITEMS (rotate every 4 weeks) ──────────────────────────
+var SPECIAL_SKINS=[
+  {id:'spec-golden-dragon', name:'🐉 Golden Dragon', cost:150, type:'pet',       petIcon:'🐉',  desc:'Mythical beast — once per cycle!', special:true},
+  {id:'spec-diamond-crown', name:'💎 Diamond Crown',  cost:80,  type:'hat',       hatIcon:'💎',  desc:'Rarest crown in the kingdom', special:true},
+  {id:'spec-aurora',        name:'🌌 Aurora',         cost:90,  type:'theme',     gradient:'linear-gradient(135deg,#00B4DB,#0083B0,#8A2BE2,#00FF88)', desc:'Northern lights', special:true},
+  {id:'spec-nyan',          name:'🌈 Nyan Cat',       cost:100, type:'pet',       petIcon:'🌈',  desc:'Classic internet icon', special:true},
+  {id:'spec-fire-wings',    name:'🦅 Fire Wings',     cost:70,  type:'accessory', accIcon:'🦅',  desc:'Spread those wings', special:true},
+  {id:'spec-alien-hat',     name:'👽 Alien Antenna',  cost:55,  type:'hat',       hatIcon:'👽',  desc:'Signals from another world', special:true},
+  {id:'spec-sparkle-frame', name:'✨ Sparkle Frame',  cost:65,  type:'frame',     frameColor:'#FFD700', desc:'Magic sparkle border', special:true},
+  {id:'spec-chaos-badge',   name:'🎰 Chaos Badge',    cost:120, type:'badge',     badgeIcon:'🎰', desc:'Total wildcard energy', special:true},
+];
+
+function getSpecialEditionItems(){
+  // Rotate every 28 days: pick 3 items from the pool
+  var epoch=new Date('2024-01-01').getTime();
+  var cycle=Math.floor((Date.now()-epoch)/(28*24*60*60*1000));
+  var count=SPECIAL_SKINS.length;
+  var items=[];
+  for(var i=0;i<3;i++){items.push(SPECIAL_SKINS[(cycle*3+i)%count]);}
+  return items;
+}
+
+function daysUntilNextSpecial(){
+  var epoch=new Date('2024-01-01').getTime();
+  var cycleMs=28*24*60*60*1000;
+  var elapsed=(Date.now()-epoch)%cycleMs;
+  return Math.ceil((cycleMs-elapsed)/(24*60*60*1000));
+}
 
 var BATTLE_PASS_TIERS=[
   {jobs:1,  icon:'🌱', name:'First Step',    reward:'Blaze Theme',      skinId:'skin-fire'},
@@ -2432,9 +2489,72 @@ function renderShop(){
          '<span class="bp-locked">'+tier.jobs+' jobs</span>')+
       '</div>';
     }
+  } else if(shopTab==='specials'){
+    var specials=getSpecialEditionItems();
+    var daysLeft=daysUntilNextSpecial();
+    html='<div style="background:linear-gradient(135deg,#FFD700,#FF6B35);border-radius:12px;padding:10px 14px;margin-bottom:12px;color:#fff;font-weight:800;font-size:13px;display:flex;justify-content:space-between;align-items:center">'+
+      '<span>🌟 Special Edition</span>'+
+      '<span style="font-size:11px;opacity:0.9">Changes in '+daysLeft+' day'+(daysLeft===1?'':'s')+'</span>'+
+    '</div>'+
+    '<div style="font-size:12px;color:#888;font-weight:700;margin-bottom:12px;text-align:center">Exclusive items — only here for a limited time!</div>'+
+    '<div class="skin-grid">';
+    for(var i=0;i<specials.length;i++){
+      var sk=specials[i];
+      var isOwned=(m.purchasedSkins||[]).indexOf(sk.id)>=0;
+      var previewHtml='';
+      if(sk.type==='theme')previewHtml='<div class="skin-preview" style="background:'+sk.gradient+'"></div>';
+      else if(sk.type==='hat')previewHtml='<div class="skin-preview" style="background:#f8f9fa;font-size:36px">'+sk.hatIcon+'</div>';
+      else if(sk.type==='pet')previewHtml='<div class="skin-preview" style="background:#f8f9fa;font-size:36px">'+sk.petIcon+'</div>';
+      else if(sk.type==='accessory')previewHtml='<div class="skin-preview" style="background:#f8f9fa;font-size:36px">'+sk.accIcon+'</div>';
+      else if(sk.type==='frame')previewHtml='<div class="skin-preview" style="background:#f8f8f8"><div style="width:48px;height:48px;border-radius:50%;border:4px solid '+sk.frameColor+';display:flex;align-items:center;justify-content:center;font-size:20px">'+(m.avatarEmoji||m.initial)+'</div></div>';
+      else if(sk.type==='badge')previewHtml='<div class="skin-preview" style="background:#f8f8f8"><div style="font-size:36px">'+sk.badgeIcon+'</div></div>';
+      var isActive=m['active'+(sk.type==='theme'?'Skin':sk.type==='frame'?'Frame':sk.type==='badge'?'Badge':sk.type==='hat'?'Hat':sk.type==='pet'?'Pet':'Accessory')]===sk.id;
+      html+='<div class="skin-card'+(isActive?' active-skin':isOwned?' owned':'')+'" onclick="shopActionSpecial(''+sk.id+'')" style="'+(isActive?'border-color:'+m.color:'')+';position:relative">'+
+        '<div style="position:absolute;top:6px;right:6px;background:linear-gradient(135deg,#FFD700,#FF6B35);color:#fff;font-size:9px;font-weight:900;border-radius:8px;padding:2px 6px;line-height:1.6">✨ SPECIAL</div>'+
+        previewHtml+
+        '<div class="skin-name">'+sk.name+'</div>'+
+        (isActive?'<div class="skin-badge active">Wearing</div>':isOwned?'<div class="skin-badge owned">Owned</div>':'<div class="skin-cost">'+sk.cost+' ⭐</div>')+
+      '</div>';
+    }
+    html+='</div>';
   }
 
   document.getElementById('shop-content').innerHTML=html;
+}
+
+function getSkinByIdAll(id){
+  for(var i=0;i<SKINS.length;i++){if(SKINS[i].id===id)return SKINS[i];}
+  for(var i=0;i<SPECIAL_SKINS.length;i++){if(SPECIAL_SKINS[i].id===id)return SPECIAL_SKINS[i];}
+  return null;
+}
+
+function shopActionSpecial(skinId){
+  var mId=document.getElementById('shop-mid').value;
+  var m=state.members.find(function(x){return x.id===mId;});
+  if(!m)return;
+  var sk=null;
+  for(var i=0;i<SPECIAL_SKINS.length;i++){if(SPECIAL_SKINS[i].id===skinId){sk=SPECIAL_SKINS[i];break;}}
+  if(!sk)return;
+  var owned=m.purchasedSkins||[];
+  var isOwned=owned.indexOf(skinId)>=0;
+  if(isOwned){
+    var typeKey=sk.type==='theme'?'Skin':sk.type==='frame'?'Frame':sk.type==='badge'?'Badge':sk.type==='hat'?'Hat':sk.type==='pet'?'Pet':'Accessory';
+    var activeKey='active'+typeKey;
+    m[activeKey]=(m[activeKey]===skinId?null:skinId);
+    save();renderShop();
+    showToast(m[activeKey]?'Wearing '+sk.name+' ✨':'Removed '+sk.name);
+  } else {
+    var bal=getBalance(mId);
+    if(bal<sk.cost){showToast('Need '+sk.cost+' ⭐ — not enough!');return;}
+    if(!confirm('Buy special '+sk.name+' for '+sk.cost+' points?'))return;
+    addPtsTx(mId,-sk.cost,'🌟 Special: '+sk.name,'redeem');
+    if(!m.purchasedSkins)m.purchasedSkins=[];
+    m.purchasedSkins.push(skinId);
+    var typeKey2=sk.type==='theme'?'Skin':sk.type==='frame'?'Frame':sk.type==='badge'?'Badge':sk.type==='hat'?'Hat':sk.type==='pet'?'Pet':'Accessory';
+    m['active'+typeKey2]=skinId;
+    save();renderShop();
+    showToast('🌟 Got '+sk.name+'! Super rare!');
+  }
 }
 
 function shopAction(skinId){
@@ -4386,208 +4506,6 @@ function playAlarmAudio(type,preview){
   if(preview)setTimeout(stop,3000);
 }
 
-function openAlarmModal(id){
-  var al=id?((state.alarms||[]).find(function(a){return a.id===id;})):null;
-  document.getElementById('alarm-edit-id').value=id||'';
-  document.getElementById('alarm-owner-id').value=al&&al.ownerId||'';
-  document.getElementById('alarm-modal-title').textContent=id?'✏️ Edit Alarm':'⏰ New Alarm';
-  document.getElementById('alarm-del-wrap').style.display=id?'block':'none';
-  document.getElementById('alarm-label').value=al&&al.label||'';
-  document.getElementById('alarm-time').value=al&&al.time||'07:00';
-  document.getElementById('alarm-recur').value=al&&al.recurrence||'once';
-  document.getElementById('alarm-date').value=al&&al.date||todayStr();
-  // Custom days
-  var selDays=al&&al.daysOfWeek||[];
-  document.querySelectorAll('#alarm-days-sel .day-sel-btn').forEach(function(b){b.classList.toggle('selected',selDays.indexOf(parseInt(b.dataset.day))>=0);});
-  // Sound
-  curAlarmSound=al&&al.sound||'digital';
-  document.querySelectorAll('.alarm-sound-btn').forEach(function(b){b.classList.toggle('active',b.dataset.sound===curAlarmSound);});
-  toggleAlarmDateField();
-  // Per-diem schedule — build grid with existing data
-  if(al&&al.recurrence==='perdiem'){buildPerDiemGrid(al.schedule||{});}
-  openModal('modal-alarm');
-}
-
-function saveAlarm(){
-  var label=document.getElementById('alarm-label').value.trim()||'Alarm';
-  var recur=document.getElementById('alarm-recur').value;
-  var time='';
-  var schedule={};
-  if(recur==='perdiem'){
-    schedule=getPerDiemSchedule();
-    var anyEnabled=false;
-    PERDIEM_DAYS.forEach(function(day){if(schedule[day.d]&&schedule[day.d].enabled)anyEnabled=true;});
-    if(!anyEnabled){showToast('Enable at least one day');return;}
-  } else {
-    time=document.getElementById('alarm-time').value;
-    if(!time){showToast('Set a time');return;}
-  }
-  var date=document.getElementById('alarm-date').value;
-  if(recur==='once'&&!date){showToast('Pick a date');return;}
-  var days=[];
-  if(recur==='custom'){
-    document.querySelectorAll('#alarm-days-sel .day-sel-btn.selected').forEach(function(b){days.push(parseInt(b.dataset.day));});
-    if(!days.length){showToast('Pick at least one day');return;}
-  }
-  var editId=document.getElementById('alarm-edit-id').value;
-  var ownerId=document.getElementById('alarm-owner-id').value||null;
-  var alarm={id:editId||uid(),label:label,time:time,recurrence:recur,date:recur==='once'?date:'',daysOfWeek:days,schedule:schedule,sound:curAlarmSound,enabled:true,snoozedUntil:null,ownerId:ownerId};
-  if(!state.alarms)state.alarms=[];
-  if(editId){var idx=state.alarms.findIndex(function(a){return a.id===editId;});if(idx>=0)state.alarms[idx]=alarm;}
-  else{state.alarms.push(alarm);}
-  save();closeModal('modal-alarm');renderAlarms();
-  if(document.getElementById('tab-kidview').classList.contains('active'))renderKidView();
-  showToast(editId?'Alarm updated ⏰':'Alarm set ⏰');
-}
-
-function deleteAlarm(){
-  var id=document.getElementById('alarm-edit-id').value;
-  state.alarms=(state.alarms||[]).filter(function(a){return a.id!==id;});
-  save();closeModal('modal-alarm');renderAlarms();
-  if(document.getElementById('tab-kidview').classList.contains('active'))renderKidView();
-  showToast('Alarm removed');
-}
-
-function toggleAlarmEnabled(id){
-  var al=(state.alarms||[]).find(function(a){return a.id===id;});
-  if(al){al.enabled=!al.enabled;save();renderAlarms();}
-}
-
-function alarmMatchesToday(al){
-  var r=al.recurrence;
-  var now=new Date();var dow=now.getDay();
-  if(r==='once')return al.date===todayStr();
-  if(r==='daily')return true;
-  if(r==='weekdays')return dow>=1&&dow<=5;
-  if(r==='weekends')return dow===0||dow===6;
-  if(r==='weekly'){var d=parseDate(al.date||todayStr());return d.getDay()===dow;}
-  if(r==='custom')return(al.daysOfWeek||[]).indexOf(dow)>=0;
-  if(r==='perdiem'){var entry=(al.schedule||{})[dow];return !!(entry&&entry.enabled);}
-  return false;
-}
-
-function getAlarmTimeForToday(al){
-  // For perdiem, return today's specific time; otherwise return al.time
-  if(al.recurrence==='perdiem'){
-    var dow=new Date().getDay();
-    var entry=(al.schedule||{})[dow];
-    return entry?entry.time:'';
-  }
-  return al.time;
-}
-
-function checkAlarms(){
-  if(!state.alarms||!state.alarms.length)return;
-  if(firingAlarmId)return;
-  var now=new Date();
-  var hh=pad(now.getHours());var mm=pad(now.getMinutes());
-  var nowStr=hh+':'+mm;
-
-  // Determine which alarms this tablet should fire
-  var kioskChild=null;
-  try{kioskChild=localStorage.getItem('kiosk_child');}catch(e){}
-
-  for(var i=0;i<state.alarms.length;i++){
-    var al=state.alarms[i];
-    if(!al.enabled)continue;
-
-    // Only fire alarms on the main (non-kiosk) tablet
-    if(kioskChild)return;
-    if(al.ownerId)continue; // skip child-owned alarms everywhere (no longer used)
-
-    if(al.snoozedUntil){var snoozeEnd=new Date(al.snoozedUntil);if(now<snoozeEnd)continue;al.snoozedUntil=null;}
-    if(!alarmMatchesToday(al))continue;
-    var alTime=getAlarmTimeForToday(al);
-    if(alTime!==nowStr)continue;
-    fireAlarm(al);return;
-  }
-}
-
-function fireAlarm(al){
-  firingAlarmId=al.id;
-  document.getElementById('alarm-fire-icon').textContent=ALARM_SOUND_ICONS[al.sound]||'⏰';
-  document.getElementById('alarm-fire-time').textContent=fmtTime(al.time+':00')||al.time;
-  document.getElementById('alarm-fire-label').textContent=al.label||'Alarm';
-  document.getElementById('alarm-fire-overlay').style.display='block';
-  document.getElementById('alarm-fire-overlay').classList.add('ringing');
-  playAlarmAudio(al.sound||'digital',false);
-}
-
-function dismissAlarm(){
-  if(!firingAlarmId&&document.getElementById('alarm-fire-overlay').style.display==='none')return;
-  if(alarmAudioStop){try{alarmAudioStop();}catch(e){}}
-  alarmAudioStop=null;
-  // Clear any MP3 onended callbacks
-  var maud=document.getElementById('meds-alarm-audio');
-  var aud=document.getElementById('custom-alarm-audio');
-  if(maud){maud.onended=null;try{maud.pause();maud.currentTime=0;}catch(e){}}
-  if(aud){aud.onended=null;try{aud.pause();aud.currentTime=0;}catch(e){}}
-  firingAlarmId=null;
-  document.getElementById('alarm-fire-overlay').style.display='none';
-  document.getElementById('alarm-fire-overlay').classList.remove('ringing');
-}
-
-function snoozeAlarm(){
-  if(firingAlarmId){
-    var al=(state.alarms||[]).find(function(a){return a.id===firingAlarmId;});
-    if(al){al.snoozedUntil=new Date(Date.now()+5*60*1000).toISOString();save();}
-  }
-  dismissAlarm();
-  showToast('Snoozed for 5 minutes 😴');
-}
-
-function alarmRecurDesc(al){
-  var r=al.recurrence;
-  if(r==='once')return al.date?fmtDate(al.date):'One-time';
-  if(r==='daily')return 'Every day';
-  if(r==='weekdays')return 'Mon – Fri';
-  if(r==='weekends')return 'Sat & Sun';
-  if(r==='weekly'){var d=parseDate(al.date||todayStr());return 'Every '+DAYS[d.getDay()];}
-  if(r==='custom'){var DN=['Su','Mo','Tu','We','Th','Fr','Sa'];return(al.daysOfWeek||[]).map(function(d){return DN[d];}).join(', ');}
-  if(r==='perdiem'){
-    var DN2=['Su','Mo','Tu','We','Th','Fr','Sa'];
-    var parts=[];
-    PERDIEM_DAYS.forEach(function(day){
-      var e=(al.schedule||{})[day.d];
-      if(e&&e.enabled)parts.push(DN2[day.d]+' '+fmtTime(e.time+':00'));
-    });
-    return parts.join(' · ');
-  }
-  return '';
-}
-
-function renderAlarms(){
-  var alarms=state.alarms||[];
-  var el=document.getElementById('alarms-list');
-  if(!el)return;
-  if(!alarms.length){
-    el.innerHTML='<div class="empty-state" style="padding:40px 0"><div class="emoji">⏰</div><p>No alarms set yet</p></div>';
-    return;
-  }
-  var sorted=alarms.slice().sort(function(a,b){
-    var ta=a.recurrence==='perdiem'?'00:00':a.time||'';
-    var tb=b.recurrence==='perdiem'?'00:00':b.time||'';
-    return ta.localeCompare(tb);
-  });
-  el.innerHTML=sorted.map(function(al){
-    var on=al.enabled;
-    var isPerdiem=al.recurrence==='perdiem';
-    var timeDisplay=isPerdiem?'Per day':fmtTime((al.time||'00:00')+':00');
-    var sub=ALARM_SOUND_ICONS[al.sound||'digital']+' '+alarmRecurDesc(al);
-    return '<div class="alarm-card'+(on?'':' disabled')+'" onclick="openAlarmModal(\''+al.id+'\')">'+
-      '<div class="alarm-time-display" style="color:'+(on?'#333':'#aaa')+';font-size:'+(isPerdiem?'18px':'32px')+'">'+timeDisplay+'</div>'+
-      '<div class="alarm-meta">'+
-        '<div class="alarm-meta-label">'+al.label+'</div>'+
-        '<div class="alarm-meta-sub" style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sub+'</div>'+
-      '</div>'+
-      '<label class="alarm-toggle" onclick="event.stopPropagation()">'+
-        '<input type="checkbox" '+(on?'checked':'')+' onchange="toggleAlarmEnabled(\''+al.id+'\')">'+
-        '<div class="alarm-toggle-slider" style="background:'+(on?'var(--red)':'#ccc')+'"></div>'+
-        '<div class="alarm-toggle-knob" style="left:'+(on?'25px':'3px')+'"></div>'+
-      '</label>'+
-    '</div>';
-  }).join('');
-}
 // ════════════════════════════════════════
 // ROUTINE TAB (Harry)
 // ════════════════════════════════════════
@@ -5462,6 +5380,7 @@ function deleteAlarm(){
 var firedAlarmKeys={};
 
 function checkAlarms(){
+  var kioskChild=null;try{kioskChild=localStorage.getItem('kiosk_child');}catch(e){}
   if(kioskChild)return;// Only main tablet fires alarms
   var alarms=getAlarms();
   var now=new Date();
@@ -5483,7 +5402,11 @@ function checkAlarms(){
       var t=times[ti];
       var key=al.id+'-'+t+'-'+today;
       if(firedAlarmKeys[key])continue;
-      if(t!==curTime)continue;
+      // Allow 5-min window in case tablet was asleep
+      var tParts=t.split(':');var alH=parseInt(tParts[0]),alM=parseInt(tParts[1]);
+      var alDate=new Date(now.getFullYear(),now.getMonth(),now.getDate(),alH,alM,0);
+      var diffMs=now-alDate;
+      if(diffMs<0||diffMs>5*60*1000)continue;// Not yet or more than 5 min ago
       // Check recurrence
       var shouldFire=false;
       var rec=al.recurrence||'daily';
