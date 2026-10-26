@@ -2095,28 +2095,18 @@ function renderAdultTasks(){
   });
   var totalAdultJobs=todayTasks.length;
 
-  var adultRows=adults.map(function(a){
-    var myTasks=todayTasks.filter(function(t){return t.memberId===a.id;});
-    var avatar=a.avatarEmoji?
-      '<div style="width:32px;height:32px;border-radius:50%;background:'+a.color+'22;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+a.avatarEmoji+'</div>':
-      '<div style="width:32px;height:32px;border-radius:50%;background:'+a.color+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0">'+a.initial+'</div>';
-    var taskList=myTasks.length?
-      myTasks.map(function(t){
-        return '<div class="adult-task-row">'+
-          '<div style="font-size:14px;font-weight:700;flex:1;line-height:1.3">'+t.title+'</div>'+
-          '<button class="adult-task-del" onclick="deleteAdultTask(\''+t.id+'\')">✕</button>'+
-        '</div>';
-      }).join(''):
-      '<div style="font-size:12px;color:#ccc;font-weight:600;padding:6px 0">Nothing logged yet today…</div>';
-    return '<div class="adult-task-card">'+
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
-        avatar+
-        '<div style="flex:1"><div style="font-family:\'Fredoka One\',cursive;font-size:16px;line-height:1.1">'+a.name+'</div>'+
-        '<div style="font-size:11px;font-weight:700;color:var(--muted)">'+myTasks.length+' task'+(myTasks.length===1?'':'s')+' today</div></div>'+
-      '</div>'+
-      taskList+
-    '</div>';
-  }).join('');
+  // One flat list, who did it shown as a small chip per row
+  var taskRows=todayTasks.length?
+    todayTasks.map(function(t){
+      var a=adults.find(function(x){return x.id===t.memberId;})||adults[0];
+      return '<div class="adult-task-row">'+
+        '<div style="font-size:11px;font-weight:900;color:#fff;background:'+a.color+';border-radius:20px;padding:2px 8px;flex-shrink:0;line-height:1.6">'+a.name+'</div>'+
+        '<div style="font-size:14px;font-weight:700;flex:1;line-height:1.3">'+t.title+'</div>'+
+        '<button class="adult-task-del" onclick="deleteAdultTask(\''+t.id+'\')">✕</button>'+
+      '</div>';
+    }).join(''):
+    '<div style="font-size:13px;color:#ccc;font-weight:600;padding:8px 0;text-align:center">Nothing logged yet — tap <b>+ Add</b> to log a task</div>';
+  var adultRows='<div class="adult-task-card">'+taskRows+'</div>';
 
   // Cheeky comparison bar
   var comparisonHtml='';
@@ -2149,7 +2139,7 @@ function renderAdultTasks(){
   el.innerHTML=
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:4px">'+
       '<div class="sec-title" style="margin:0">💼 What the Adults Did</div>'+
-      '<button onclick="openWithPin(openAdultTaskModal)" style="margin-left:auto;background:var(--primary);color:#fff;border:none;border-radius:20px;padding:5px 12px;font-family:\'Nunito\';font-weight:800;font-size:12px;cursor:pointer">+ Log</button>'+
+      '<button onclick="openWithPin(openAdultTaskModal)" style="margin-left:auto;background:#FF6B35;color:#fff;border:none;border-radius:20px;padding:9px 20px;font-family:\'Nunito\';font-weight:900;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(255,107,53,0.5)">＋ Add Task</button>'+
     '</div>'+
     comparisonHtml+
     adultRows;
