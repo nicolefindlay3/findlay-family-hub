@@ -5468,17 +5468,6 @@ function dismissAlarm(){
   currentFiringAudio=null;currentFiringAlarm=null;
 }
 
-function snoozeAlarm(mins){
-  if(currentFiringAudio){try{currentFiringAudio.pause();currentFiringAudio.currentTime=0;}catch(e){}}
-  currentFiringAudio=null;
-  if(currentFiringAlarm){
-    currentFiringAlarm.snoozedUntil=new Date(Date.now()+mins*60*1000).toISOString();
-    save();
-  }
-  document.getElementById('alarm-fire-overlay').style.display='none';
-  currentFiringAlarm=null;
-  showToast('😴 Snoozed '+mins+' min');
-}
 // ─────────────────────────────────────────────────────────────────────────────
 
 </script>
@@ -5489,12 +5478,7 @@ function snoozeAlarm(mins){
     <div style="font-size:72px;margin-bottom:10px">⏰</div>
     <div style="font-family:'Fredoka One',cursive;font-size:30px;margin-bottom:8px" id="alarm-fire-label">Alarm</div>
     <div style="font-size:18px;font-weight:700;margin-bottom:30px;opacity:0.85" id="alarm-fire-time"></div>
-    <button onclick="dismissAlarm()" style="background:#fff;color:#333;border:none;border-radius:50px;padding:16px 40px;font-family:'Fredoka One',cursive;font-size:22px;cursor:pointer;margin-bottom:14px;width:100%">✅ Dismiss</button>
-    <div style="display:flex;gap:10px">
-      <button onclick="snoozeAlarm(5)" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.4);border-radius:50px;padding:12px;font-family:'Fredoka One',cursive;font-size:16px;cursor:pointer">😴 5 min</button>
-      <button onclick="snoozeAlarm(10)" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.4);border-radius:50px;padding:12px;font-family:'Fredoka One',cursive;font-size:16px;cursor:pointer">😴 10 min</button>
-      <button onclick="snoozeAlarm(15)" style="flex:1;background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.4);border-radius:50px;padding:12px;font-family:'Fredoka One',cursive;font-size:16px;cursor:pointer">😴 15 min</button>
-    </div>
+    <div style="font-size:16px;opacity:0.8;margin-top:10px">This alarm will close when it finishes playing.</div>
   </div>
 </div>
 </body>
