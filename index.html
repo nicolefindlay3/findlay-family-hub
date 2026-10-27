@@ -5389,6 +5389,14 @@ function deleteAlarm(){
 
 // ── Alarm checking ────────────────────────────────────────────────────────────
 var firedAlarmKeys={};
+function loadFiredKeys(){try{var s=localStorage.getItem('firedAlarmKeys');if(s)firedAlarmKeys=JSON.parse(s);}catch(e){}}
+function saveFiredKey(key){firedAlarmKeys[key]=true;try{localStorage.setItem('firedAlarmKeys',JSON.stringify(firedAlarmKeys));}catch(e){}}
+function pruneFiredKeys(){// Remove keys older than today to stop localStorage growing forever
+  var today=todayStr();var pruned={};
+  for(var k in firedAlarmKeys){if(k.indexOf('-'+today)!==-1)pruned[k]=true;}
+  firedAlarmKeys=pruned;try{localStorage.setItem('firedAlarmKeys',JSON.stringify(firedAlarmKeys));}catch(e){}
+}
+loadFiredKeys();
 
 function checkAlarms(){
   var kioskChild=null;try{kioskChild=localStorage.getItem('kiosk_child');}catch(e){}
@@ -5412,7 +5420,7 @@ function checkAlarms(){
     for(var ti=0;ti<times.length;ti++){
       var t=times[ti];
       var key=al.id+'-'+t+'-'+today;
-      if(firedAlarmKeys[key])continue;
+      if(firedAlarmKeys[key])continue;// already fired today
       // Allow 5-min window in case tablet was asleep
       var tParts=t.split(':');var alH=parseInt(tParts[0]),alM=parseInt(tParts[1]);
       var alDate=new Date(now.getFullYear(),now.getMonth(),now.getDate(),alH,alM,0);
@@ -5436,7 +5444,8 @@ function checkAlarms(){
         shouldFire=(weeksDiff%2===0);
       }
       if(!shouldFire)continue;
-      firedAlarmKeys[key]=true;
+      saveFiredKey(key);
+      pruneFiredKeys();
       fireAlarm(al);
       break;
     }
