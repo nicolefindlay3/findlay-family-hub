@@ -5421,11 +5421,9 @@ function checkAlarms(){
       var t=times[ti];
       var key=al.id+'-'+t+'-'+today;
       if(firedAlarmKeys[key])continue;// already fired today
-      // Allow 5-min window in case tablet was asleep
-      var tParts=t.split(':');var alH=parseInt(tParts[0]),alM=parseInt(tParts[1]);
-      var alDate=new Date(now.getFullYear(),now.getMonth(),now.getDate(),alH,alM,0);
-      var diffMs=now-alDate;
-      if(diffMs<0||diffMs>5*60*1000)continue;// Not yet or more than 5 min ago
+      // Fire only within the current minute (check runs every 30s so this is plenty)
+      var curHH=pad(now.getHours()),curMM=pad(now.getMinutes());
+      if(t!==curHH+':'+curMM)continue;
       // Check recurrence
       var shouldFire=false;
       var rec=al.recurrence||'daily';
