@@ -2144,11 +2144,15 @@ function renderAdultTasks(){
   if(!adults.length){el.innerHTML='';return;}
   var todayTasks=state.adultTasks.filter(function(t){return t.date===today;});
 
-  // Tally kids' chore completions today for comparison
+  // Tally kids' chore completions today for comparison — exclude no-points (duty) chores
   var children=state.members.filter(function(m){return m.isChild;});
   var totalKidJobs=0;
   children.forEach(function(ch){
-    totalKidJobs+=state.choreCompletions.filter(function(c){return c.memberId===ch.id&&c.date===today;}).length;
+    totalKidJobs+=state.choreCompletions.filter(function(c){
+      if(c.memberId!==ch.id||c.date!==today)return false;
+      var chore=state.chores.find(function(ch2){return ch2.id===c.choreId;});
+      return chore&&!chore.noPoints;// only count point-earning chores
+    }).length;
   });
   var totalAdultJobs=todayTasks.length;
 
