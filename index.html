@@ -3091,10 +3091,9 @@ function renderChores(){
           choreRows+=
             '<div class="chore-item '+(isDone?'done':'')+'" style="background:'+(byParent?'#fff0f0':ch.color+'12')+'">'+
             '<div class="chore-check '+(isDone?'done':'')+'" style="color:'+clr+';border-color:'+clr+'" onclick="toggleChore(\''+c2.id+'\',\''+ch.id+'\',\''+ds+'\',this)">'+(byParent?'<span style="font-size:10px">👤</span>':'')+'</div>'+
-            '<span class="chore-label quad-chore-label" style="flex:1'+(byParent?';color:#e57373':'')+'">'+c2.title+'</span>'+
+            '<span class="chore-label quad-chore-label" style="flex:1;cursor:pointer;'+(byParent?'color:#e57373':'')+(isDone?';text-decoration:line-through;color:#bbb':'')+'" onclick="openChoreModal(\''+c2.id+'\')" title="Tap to edit">'+c2.title+'</span>'+
             '<span class="chore-pts" style="color:'+clr+'">'+(byParent?'-1⭐':(c2.noPoints?'📋':'⭐'+(c2.points||1)))+'</span>'+
             '<button onclick="parentDidChore(\''+c2.id+'\',\''+ch.id+'\',\''+ds+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:2px 3px;color:'+(byParent?'#e57373':'#ccc')+'">👤</button>'+
-            '<button onclick="openChoreModal(\''+c2.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:2px 3px;color:#aaa">✏️</button>'+
             '<button onclick="confirmDeleteChore(\''+c2.id+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:2px 3px;color:#ccc">🗑</button>'+
             '</div>';
         }
