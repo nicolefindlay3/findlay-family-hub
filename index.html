@@ -5468,8 +5468,10 @@ function fireAlarm(al){
   var audio=document.getElementById(audioId);
   if(audio){
     audio.currentTime=0;
+    audio.onended=null;
     try{audio.play();}catch(e){}
     currentFiringAudio=audio;
+    audio.onended=function(){audio.onended=null;dismissAlarm();};
   }
 }
 
