@@ -803,7 +803,7 @@ create policy "public_access" on app_state
         <div class="cal-nav-title" id="cal-month-title"></div>
         <button class="cal-nav-btn" onclick="calNav(1)">›</button>
       </div>
-      <div class="dow-hdr"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="dow-hdr"><span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div>
       <div class="month-days" id="month-days"></div>
       <div id="month-day-panel" style="display:none;margin:8px 10px 0;background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:12px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -2779,8 +2779,9 @@ function renderMonth(){
   document.getElementById('cal-month-title').textContent=`${MONTHS[mo]} ${y}`;
   const first=new Date(y,mo,1),last=new Date(y,mo+1,0),today=todayStr();
   let html='';
-  for(let i=0;i<first.getDay();i++){
-    const d=new Date(y,mo,1-first.getDay()+i);
+  const firstOffset=(first.getDay()+1)%7;
+  for(let i=0;i<firstOffset;i++){
+    const d=new Date(y,mo,1-firstOffset+i);
     html+=`<div class="mday other"><div class="mday-num">${d.getDate()}</div></div>`;
   }
   for(let d=1;d<=last.getDate();d++){
@@ -2795,7 +2796,7 @@ function renderMonth(){
     html+=`<div class="mday${isT?' today':''}${isSel?' selected':''}" onclick="showDayEvents('${ds}')">
       <div class="mday-num">${d}</div>${bars}${more}</div>`;
   }
-  const tot=first.getDay()+last.getDate();
+  const tot=firstOffset+last.getDate();
   for(let i=1;i<=(7-tot%7)%7;i++)html+=`<div class="mday other"><div class="mday-num">${i}</div></div>`;
   document.getElementById('month-days').innerHTML=html;
   // Show panel for selected day without re-calling renderMonth
@@ -2823,7 +2824,7 @@ function renderMonthPanel(ds){
 }
 
 function renderWeek(){
-  const ws=new Date(calDate);ws.setDate(calDate.getDate()-calDate.getDay());
+  const ws=new Date(calDate);ws.setDate(calDate.getDate()-(calDate.getDay()+1)%7);
   const today=todayStr();
   const days=Array.from({length:7},(_,i)=>{const d=new Date(ws);d.setDate(ws.getDate()+i);return d});
   document.getElementById('cal-week-title').textContent=
@@ -3625,6 +3626,26 @@ function confirmRedeem(){
 // ── Audio unlock on first user touch ──
 var audioCtxUnlocked=false;
 var speechUnlocked=false;
+var noSleepNode=null;var noSleepGain=null;var noSleepCtx=null;
+function startNoSleep(){
+  // Keep screen awake by playing a nearly-silent looping audio buffer.
+  // On iOS, an active audio session prevents the screen from auto-locking.
+  if(noSleepNode)return;
+  try{
+    noSleepCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var rate=noSleepCtx.sampleRate;
+    // 1-second silent buffer, looped forever
+    var buf=noSleepCtx.createBuffer(1,rate,rate);
+    noSleepGain=noSleepCtx.createGain();
+    noSleepGain.gain.value=0.001;// nearly inaudible
+    noSleepNode=noSleepCtx.createBufferSource();
+    noSleepNode.buffer=buf;
+    noSleepNode.loop=true;
+    noSleepNode.connect(noSleepGain);
+    noSleepGain.connect(noSleepCtx.destination);
+    noSleepNode.start(0);
+  }catch(e){}
+}
 function unlockAudio(){
   if(!audioCtxUnlocked){
     try{
@@ -3634,6 +3655,7 @@ function unlockAudio(){
       audioCtxUnlocked=true;
     }catch(e){}
   }
+  startNoSleep();
   if(!speechUnlocked&&'speechSynthesis' in window){
     var utt=new SpeechSynthesisUtterance('');utt.volume=0;
     window.speechSynthesis.speak(utt);
@@ -5199,6 +5221,7 @@ function dismissMsgOverlay(){
 var ssIdleTimer=null;
 var ssClockInterval=null;
 var SS_IDLE_MS=600000;
+var SS_ENABLED=false;// screensaver disabled — stay on current page
 
 function ssAnyModalOpen(){
   if(document.querySelector('.modal-overlay.open'))return true;
@@ -5212,6 +5235,7 @@ function ssAnyModalOpen(){
 }
 
 function resetIdleTimer(){
+  if(!SS_ENABLED)return;
   if(ssIdleTimer)clearTimeout(ssIdleTimer);
   ssIdleTimer=setTimeout(ssTryShow,SS_IDLE_MS);
 }
@@ -5402,9 +5426,16 @@ function pruneFiredKeys(){// Remove keys older than today to stop localStorage g
 }
 loadFiredKeys();
 
+var alarmCheckBusy=false;
 function checkAlarms(){
+  if(alarmCheckBusy)return;// prevent double-fire if interval catches up on wake
+  alarmCheckBusy=true;
+  setTimeout(function(){alarmCheckBusy=false;},2000);// release lock after 2s
   var kioskChild=null;try{kioskChild=localStorage.getItem('kiosk_child');}catch(e){}
-  if(kioskChild)return;// Only main tablet fires alarms
+  if(kioskChild){alarmCheckBusy=false;return;}// Only main tablet fires alarms
+  // If an alarm is already showing, don't fire another
+  var ov=document.getElementById('alarm-fire-overlay');
+  if(ov&&ov.style.display==='block'){alarmCheckBusy=false;return;}
   var alarms=getAlarms();
   var now=new Date();
   var hh=pad(now.getHours()),mm=pad(now.getMinutes());
@@ -5448,10 +5479,12 @@ function checkAlarms(){
       if(!shouldFire)continue;
       saveFiredKey(key);
       pruneFiredKeys();
+      alarmCheckBusy=false;
       fireAlarm(al);
-      break;
+      return;
     }
   }
+  alarmCheckBusy=false;
 }
 
 function fireAlarm(al){
